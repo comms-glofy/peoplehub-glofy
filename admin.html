@@ -170,7 +170,10 @@
           <button class="chip" data-filter="Rechazado">Rechazadas</button>
           <button class="chip" data-filter="Todas">Todas</button>
         </div>
-        <button class="btn btn-outline btn-sm" id="refresh-requests-btn">Actualizar</button>
+        <div style="display:flex; gap:8px;">
+          <button class="btn btn-outline btn-sm" id="add-request-btn">+ Agregar solicitud</button>
+          <button class="btn btn-outline btn-sm" id="refresh-requests-btn">Actualizar</button>
+        </div>
       </div>
       <div class="card-list" id="requests-list"></div>
     </div>
@@ -232,13 +235,63 @@
   </div>
 </div>
 
+<!-- MODAL: agregar solicitud manual (histórico u otra carga a mano) -->
+<div class="modal-overlay" id="request-modal-overlay">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>Agregar solicitud</h3>
+      <button class="modal-close" id="request-modal-close">✕</button>
+    </div>
+    <p class="modal-hint" style="margin-top:-10px;">Para cargar licencias que la persona ya se tomó antes de que existiera el sistema, o cualquier registro manual. No manda ningún aviso por Slack ni mail.</p>
+    <div id="request-modal-error" class="error-msg"></div>
+    <form id="request-form">
+      <div class="field">
+        <label>Colaborador</label>
+        <select name="email" id="request-employee-select" required></select>
+      </div>
+      <div class="field">
+        <label>Tipo de licencia</label>
+        <select name="tipo" id="request-tipo-select" required></select>
+      </div>
+      <div class="field">
+        <label>Fecha de inicio</label>
+        <input type="date" name="fecha_inicio" required>
+      </div>
+      <div class="field">
+        <label>Fecha de fin</label>
+        <input type="date" name="fecha_fin">
+      </div>
+      <div class="field">
+        <label>Días</label>
+        <input type="number" name="dias" step="0.5" min="0.5" value="1" required>
+      </div>
+      <div class="field">
+        <label>Estado</label>
+        <select name="estado">
+          <option value="Aprobado" selected>Aprobado</option>
+          <option value="Pendiente">Pendiente</option>
+          <option value="Rechazado">Rechazado</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Motivo / nota (opcional)</label>
+        <textarea name="motivo" placeholder="Ej. Carga histórica — vacaciones de enero 2025"></textarea>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-outline" id="request-modal-cancel">Cancelar</button>
+        <button type="submit" class="btn" id="request-modal-submit">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
 /* ======================================================================
    CONFIG — misma URL de Apps Script que usa index.html
 ====================================================================== */
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbypWrDTeBaOsfKQe4uyeLVp_8mmfU__OXlJA-oFVAEYiU7zPOU04j5nySR7Nstjj6dl/exec"; // ej: "https://script.google.com/macros/s/XXXX/exec"
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxNUkIQedGXGPNVVb7XQ9HoQmMUHGEL-9C9v845nPE9nc-76TJ_wueXBZoGI715bjTk3g/exec"; // ej: "https://script.google.com/macros/s/XXXX/exec"
 
 const LEAVE_TYPE_NAMES = {
   permiso_corto: "Permiso corto / ausencia programada",
@@ -254,6 +307,7 @@ const LEAVE_TYPE_NAMES = {
 let adminPassword = null;
 let currentFilter = "Pendiente";
 let editingEmployeeRowNum = null; // null = modal en modo "agregar"
+const ADMIN_SESSION_KEY = "peoplehub_admin_session"; // localStorage: guarda la contraseña de admin en este navegador para no pedirla cada vez
 
 const $ = sel => document.querySelector(sel);
 const el = (tag, cls, html) => { const e=document.createElement(tag); if(cls) e.className=cls; if(html!==undefined) e.innerHTML=html; return e; };
@@ -302,6 +356,7 @@ $("#login-form").addEventListener("submit", async (e)=>{
   try{
     adminPassword = $("#admin-password").value;
     await apiCall("adminLogin", {});
+    try{ localStorage.setItem(ADMIN_SESSION_KEY, adminPassword); }catch(err){ /* si el navegador bloquea localStorage, seguimos sin sesión persistida */ }
     $("#login-screen").classList.remove("active");
     $("#app-screen").classList.add("active");
     await loadRequests();
@@ -317,10 +372,33 @@ $("#login-form").addEventListener("submit", async (e)=>{
 
 $("#logout-btn").addEventListener("click", ()=>{
   adminPassword = null;
+  try{ localStorage.removeItem(ADMIN_SESSION_KEY); }catch(err){ /* no-op */ }
   $("#app-screen").classList.remove("active");
   $("#login-screen").classList.add("active");
   $("#login-form").reset();
 });
+
+/* ======================================================================
+   Si ya había una contraseña de admin guardada en este navegador, la
+   probamos sola sin pedir el login de nuevo. Si ya no es válida (la
+   cambiaron en Code.gs), volvemos silenciosamente a la pantalla de login.
+====================================================================== */
+(async function tryRestoreAdminSession(){
+  let saved = null;
+  try{ saved = localStorage.getItem(ADMIN_SESSION_KEY); }catch(err){ /* no-op */ }
+  if (!saved) return;
+  adminPassword = saved;
+  try{
+    await apiCall("adminLogin", {});
+    $("#login-screen").classList.remove("active");
+    $("#app-screen").classList.add("active");
+    await loadRequests();
+    await loadEmployees();
+  }catch(err){
+    adminPassword = null;
+    try{ localStorage.removeItem(ADMIN_SESSION_KEY); }catch(e2){ /* no-op */ }
+  }
+})();
 
 /* ======================================================================
    TABS
@@ -511,6 +589,62 @@ $("#employee-form").addEventListener("submit", async (e)=>{
   }catch(err){
     $("#employee-modal-error").textContent = err.message || "No pudimos guardar los datos.";
     $("#employee-modal-error").classList.add("show");
+  }finally{
+    btn.disabled = false; btn.textContent = "Guardar";
+  }
+});
+
+/* ======================================================================
+   AGREGAR SOLICITUD (histórico / carga manual)
+====================================================================== */
+$("#add-request-btn").addEventListener("click", openRequestModal);
+
+function openRequestModal(){
+  if (!allEmployees.length){
+    showToast("Primero cargá al menos un colaborador.");
+    return;
+  }
+  const empSelect = $("#request-employee-select");
+  empSelect.innerHTML = allEmployees.map(e => `<option value="${e.email}">${e.nombre} (${e.email})</option>`).join("");
+
+  const tipoSelect = $("#request-tipo-select");
+  tipoSelect.innerHTML = Object.entries(LEAVE_TYPE_NAMES).map(([id,name]) => `<option value="${id}">${name}</option>`).join("");
+
+  $("#request-modal-error").classList.remove("show");
+  $("#request-form").reset();
+  $("#request-modal-overlay").classList.add("active");
+}
+
+function closeRequestModal(){
+  $("#request-modal-overlay").classList.remove("active");
+  $("#request-form").reset();
+}
+$("#request-modal-close").addEventListener("click", closeRequestModal);
+$("#request-modal-cancel").addEventListener("click", closeRequestModal);
+$("#request-modal-overlay").addEventListener("click", (e)=>{ if(e.target.id==="request-modal-overlay") closeRequestModal(); });
+
+$("#request-form").addEventListener("submit", async (e)=>{
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const payload = {
+    email: fd.get("email"),
+    tipo: fd.get("tipo"),
+    fecha_inicio: fd.get("fecha_inicio"),
+    fecha_fin: fd.get("fecha_fin") || fd.get("fecha_inicio"),
+    dias: Number(fd.get("dias")) || 1,
+    estado: fd.get("estado"),
+    motivo: fd.get("motivo"),
+  };
+  const btn = $("#request-modal-submit");
+  btn.disabled = true; btn.textContent = "Guardando...";
+  try{
+    await apiCall("adminAddRequest", payload);
+    showToast("Solicitud cargada.");
+    closeRequestModal();
+    await loadRequests();
+  }catch(err){
+    $("#request-modal-error").textContent = err.message || "No pudimos guardar la solicitud.";
+    $("#request-modal-error").classList.add("show");
   }finally{
     btn.disabled = false; btn.textContent = "Guardar";
   }
