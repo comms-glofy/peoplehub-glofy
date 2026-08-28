@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>People Hub</title>
+<link rel="icon" href="https://raw.githubusercontent.com/comms-glofy/glofy-assets/refs/heads/main/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --dark:#212121;
+    --dark2:#383838;
+    --lime:#ceff00;
+    --gray:#e1e1e1;
+    --offwhite:#ededed;
+    --danger:#ff6b5e;
+    --warn:#ffb347;
+    --ok:#8fe388;
+    --radius:14px;
+    --radius-sm:9px;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%;}
+  body{
+    font-family:'Montserrat',sans-serif;
+    background:var(--dark);
+    color:var(--offwhite);
+    min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:inherit;}
+  button{font-family:inherit; cursor:pointer;}
+  input,select,textarea{font-family:inherit;}
+
+  /* ---------- layout shells ---------- */
+  .screen{display:none; min-height:100vh;}
+  .screen.active{display:flex; flex-direction:column;}
+
+  /* ---------- login ---------- */
+  #login-screen{align-items:center; justify-content:center; padding:24px;}
+  .login-card{
+    width:100%; max-width:380px;
+    background:var(--dark2);
+    border-radius:var(--radius);
+    padding:40px 32px 32px;
+    border:1px solid #454545;
+  }
+  .login-logo{display:flex; justify-content:center; margin-bottom:28px;}
+  .login-logo img{height:30px; width:auto;}
+  .login-card h1{font-size:17px; font-weight:600; text-align:center; margin-bottom:4px;}
+  .login-card p.sub{font-size:12.5px; color:#9c9c9c; text-align:center; margin-bottom:26px;}
+  .field{margin-bottom:16px;}
+  .field label{display:block; font-size:11.5px; font-weight:600; letter-spacing:.03em; text-transform:uppercase; color:#a8a8a8; margin-bottom:7px;}
+  .field input, .field select, .field textarea{
+    width:100%;
+    background:#2c2c2c;
+    border:1px solid #4a4a4a;
+    border-radius:var(--radius-sm);
+    padding:11px 13px;
+    color:var(--offwhite);
+    font-size:14px;
+    outline:none;
+    transition:border-color .15s;
+  }
+  .field input:focus, .field select:focus, .field textarea:focus{border-color:var(--lime);}
+  .field textarea{resize:vertical; min-height:70px;}
+  .btn{
+    width:100%;
+    background:var(--lime);
+    color:var(--dark);
+    border:none;
+    border-radius:var(--radius-sm);
+    padding:12px 16px;
+    font-weight:700;
+    font-size:13.5px;
+    letter-spacing:.01em;
+    transition:opacity .15s, transform .08s;
+  }
+  .btn:hover{opacity:.88;}
+  .btn:active{transform:scale(.98);}
+  .btn:disabled{opacity:.5; cursor:not-allowed;}
+  .btn-outline{
+    background:transparent;
+    color:var(--offwhite);
+    border:1px solid #4a4a4a;
+  }
+  .btn-outline:hover{border-color:var(--lime); color:var(--lime); opacity:1;}
+  .btn-sm{padding:8px 14px; font-size:12.5px; width:auto;}
+  .error-msg{
+    background:rgba(255,107,94,.12);
+    border:1px solid rgba(255,107,94,.4);
+    color:#ff9a8f;
+    font-size:12.5px;
+    padding:9px 12px;
+    border-radius:var(--radius-sm);
+    margin-bottom:14px;
+    display:none;
+  }
+  .error-msg.show{display:block;}
+  .btn-link{
+    display:block; width:100%; text-align:center;
+    background:none; border:none; color:#9c9c9c;
+    font-size:12px; font-weight:600; margin-top:14px;
+    text-decoration:underline; text-underline-offset:3px;
+  }
+  .btn-link:hover{color:var(--lime);}
+
+  /* ---------- app shell ---------- */
+  #app-screen{display:none;}
+  #app-screen.active{display:flex; flex-direction:column;}
+  header.topbar{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:16px 28px;
+    border-bottom:1px solid #333;
+    position:sticky; top:0; background:var(--dark); z-index:20;
+  }
+  .topbar-left{display:flex; align-items:center; gap:14px;}
+  .topbar-left img{height:22px;}
+  .topbar-left .divider{width:1px; height:18px; background:#444;}
+  .topbar-left .title{font-size:13px; font-weight:600; color:#c9c9c9;}
+  .topbar-right{display:flex; align-items:center; gap:14px;}
+  .user-chip{display:flex; align-items:center; gap:9px; font-size:13px;}
+  .avatar{
+    width:30px; height:30px; border-radius:50%;
+    background:var(--lime); color:var(--dark);
+    display:flex; align-items:center; justify-content:center;
+    font-weight:800; font-size:12px;
+    overflow:hidden; flex-shrink:0;
+  }
+  .avatar img, .p-avatar img{width:100%; height:100%; object-fit:cover; display:block;}
+  main.container{
+    width:100%; max-width:1080px; margin:0 auto;
+    padding:32px 28px 80px;
+  }
+  .page-head{margin-bottom:26px;}
+  .page-head h2{font-size:21px; font-weight:700;}
+  .page-head p{font-size:13px; color:#9c9c9c; margin-top:4px;}
+
+  /* ---------- balance cards ---------- */
+  .cards-grid{
+    display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+    gap:14px; margin-bottom:34px;
+  }
+  .balance-card{
+    background:var(--dark2); border:1px solid #454545; border-radius:var(--radius);
+    padding:20px;
+  }
+  .balance-card .label{font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:#a3a3a3; font-weight:600; margin-bottom:10px;}
+  .balance-card .value{font-size:28px; font-weight:800; line-height:1;}
+  .balance-card .value .unit{font-size:13px; font-weight:600; color:#9c9c9c; margin-left:4px;}
+  .balance-card .foot{font-size:12px; color:#8d8d8d; margin-top:8px;}
+  .balance-card.accent{border-color:var(--lime); background:linear-gradient(135deg,rgba(206,255,0,.09),rgba(206,255,0,.02));}
+  .bar-track{height:6px; background:#454545; border-radius:99px; margin-top:12px; overflow:hidden;}
+  .bar-fill{height:100%; background:var(--lime); border-radius:99px;}
+  .status-pill{display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:700; padding:4px 10px; border-radius:999px; margin-top:6px;}
+  .status-pill.available{background:rgba(143,227,136,.12); color:var(--ok);}
+  .status-pill.used{background:rgba(255,255,255,.07); color:#b5b5b5;}
+
+  /* ---------- sections ---------- */
+  .section{margin-bottom:38px;}
+  .section-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;}
+  .section-head h3{font-size:15px; font-weight:700;}
+
+  .request-types{display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:10px;}
+  .type-btn{
+    text-align:left;
+    background:var(--dark2); border:1px solid #454545; border-radius:var(--radius-sm);
+    padding:14px 16px;
+    color:var(--offwhite);
+    transition:border-color .15s, transform .08s;
+  }
+  .type-btn:hover{border-color:var(--lime); transform:translateY(-1px);}
+  .type-btn .t-name{font-size:13px; font-weight:700; display:block; margin-bottom:3px; color:var(--offwhite);}
+  .type-btn .t-desc{font-size:11.5px; color:#999; line-height:1.4;}
+
+  /* history table */
+  .history-list{display:flex; flex-direction:column; gap:8px;}
+  .history-row{
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+    background:var(--dark2); border:1px solid #3f3f3f; border-radius:var(--radius-sm);
+    padding:13px 16px;
+  }
+  .history-row .h-main{display:flex; flex-direction:column; gap:2px;}
+  .history-row .h-type{font-size:13px; font-weight:700;}
+  .history-row .h-dates{font-size:12px; color:#999;}
+  .badge{font-size:11px; font-weight:700; padding:4px 10px; border-radius:999px; white-space:nowrap;}
+  .badge.Pendiente{background:rgba(255,179,71,.14); color:var(--warn);}
+  .badge.Aprobado{background:rgba(143,227,136,.14); color:var(--ok);}
+  .badge.Rechazado{background:rgba(255,107,94,.14); color:var(--danger);}
+  .empty-state{
+    border:1px dashed #454545; border-radius:var(--radius-sm);
+    padding:26px; text-align:center; color:#888; font-size:13px;
+  }
+
+  /* birthdays / anniversaries */
+  .month-nav{display:flex; align-items:center; gap:12px;}
+  .month-nav button{background:var(--dark2); border:1px solid #454545; color:var(--offwhite); width:30px; height:30px; border-radius:8px; font-size:14px;}
+  .month-nav button:hover{border-color:var(--lime);}
+  .month-label{font-size:13px; font-weight:700; min-width:120px; text-align:center;}
+  .people-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:10px;}
+  .people-card{
+    display:flex; align-items:center; gap:12px;
+    background:var(--dark2); border:1px solid #3f3f3f; border-radius:var(--radius-sm);
+    padding:12px 14px;
+  }
+  .people-card .p-avatar{
+    width:38px; height:38px; border-radius:50%; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center; font-weight:800; font-size:13px;
+    overflow:hidden;
+  }
+  .people-card.birthday .p-avatar{background:var(--lime); color:var(--dark);}
+  .people-card.anniversary .p-avatar{background:#4a4a4a; color:var(--offwhite);}
+  .people-card .p-name{font-size:13px; font-weight:700;}
+  .people-card .p-date{font-size:11.5px; color:#999; margin-top:1px;}
+  .tag-mini{font-size:9.5px; font-weight:800; letter-spacing:.04em; text-transform:uppercase; padding:2px 7px; border-radius:5px; margin-left:auto;}
+  .tag-mini.birthday{background:rgba(206,255,0,.15); color:var(--lime);}
+  .tag-mini.anniversary{background:rgba(255,255,255,.08); color:#c8c8c8;}
+
+  /* modal */
+  .modal-overlay{
+    display:none; position:fixed; inset:0; background:rgba(0,0,0,.6);
+    align-items:center; justify-content:center; z-index:100; padding:20px;
+  }
+  .modal-overlay.active{display:flex;}
+  .modal{
+    width:100%; max-width:440px; max-height:88vh; overflow-y:auto;
+    background:var(--dark2); border:1px solid #4a4a4a; border-radius:var(--radius);
+    padding:26px;
+  }
+  .modal-head{display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:6px;}
+  .modal-head h3{font-size:16px; font-weight:700;}
+  .modal-close{background:none; border:none; color:#999; font-size:18px; line-height:1;}
+  .modal-desc{font-size:12.5px; color:#9c9c9c; margin-bottom:20px; line-height:1.5;}
+  .modal-actions{display:flex; gap:10px; margin-top:18px;}
+  .toast{
+    position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(20px);
+    background:var(--dark2); border:1px solid var(--lime); color:var(--offwhite);
+    padding:13px 20px; border-radius:var(--radius-sm); font-size:13px; font-weight:600;
+    opacity:0; pointer-events:none; transition:all .25s; z-index:200;
+    box-shadow:0 8px 24px rgba(0,0,0,.4);
+  }
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+
+  @media(max-width:640px){
+    main.container{padding:24px 16px 70px;}
+    header.topbar{padding:14px 16px;}
+    .topbar-left .title{display:none;}
+  }
+</style>
+</head>
+<body>
+
+<!-- =============== LOGIN =============== -->
+<section id="login-screen" class="screen active">
+  <div class="login-card">
+    <div class="login-logo">
+      <img src="https://raw.githubusercontent.com/comms-glofy/glofy-assets/refs/heads/main/logo-rebrand-glofy.png" alt="Glofy">
+    </div>
+    <h1>People Hub</h1>
+    <p class="sub">Ingresá con tu mail corporativo</p>
+    <div id="login-error" class="error-msg"></div>
+    <form id="login-form">
+      <div class="field">
+        <label for="login-email">Mail corporativo</label>
+        <input type="email" id="login-email" placeholder="nombre.apellido@glofy.co" required autocomplete="username">
+      </div>
+      <div class="field">
+        <label for="login-password">Contraseña</label>
+        <input type="password" id="login-password" placeholder="La que te dio People" required autocomplete="current-password">
+      </div>
+      <button type="submit" class="btn" id="login-btn">Ingresar</button>
+    </form>
+    <button type="button" class="btn-link" id="forgot-password-btn">¿Olvidaste tu contraseña?</button>
+  </div>
+</section>
+
+<!-- =============== CAMBIO DE CONTRASEÑA (obligatorio en primer ingreso) =============== -->
+<section id="change-password-screen" class="screen">
+  <div class="login-card">
+    <div class="login-logo">
+      <img src="https://raw.githubusercontent.com/comms-glofy/glofy-assets/refs/heads/main/logo-rebrand-glofy.png" alt="Glofy">
+    </div>
+    <h1>Elegí tu contraseña</h1>
+    <p class="sub">Es tu primer ingreso — necesitamos que reemplaces la contraseña temporal por una tuya.</p>
+    <div id="change-password-error" class="error-msg"></div>
+    <form id="change-password-form">
+      <div class="field">
+        <label for="new-password">Contraseña nueva</label>
+        <input type="password" id="new-password" placeholder="Mínimo 8 caracteres" minlength="8" required autocomplete="new-password">
+      </div>
+      <div class="field">
+        <label for="new-password-confirm">Repetila</label>
+        <input type="password" id="new-password-confirm" placeholder="Mínimo 8 caracteres" minlength="8" required autocomplete="new-password">
+      </div>
+      <button type="submit" class="btn" id="change-password-btn">Guardar y continuar</button>
+    </form>
+  </div>
+</section>
+
+<!-- =============== APP =============== -->
+<section id="app-screen" class="screen">
+  <header class="topbar">
+    <div class="topbar-left">
+      <img src="https://raw.githubusercontent.com/comms-glofy/glofy-assets/refs/heads/main/logo-rebrand-glofy.png" alt="Glofy">
+      <div class="divider"></div>
+      <span class="title">People Hub</span>
+    </div>
+    <div class="topbar-right">
+      <div class="user-chip">
+        <div class="avatar" id="user-avatar">-</div>
+        <span id="user-name">-</span>
+      </div>
+      <button class="btn btn-outline btn-sm" id="logout-btn">Salir</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <div class="page-head">
+      <h2>Hola, <span id="greet-name">-</span> 👋</h2>
+      <p>Así están tus licencias y beneficios hoy.</p>
+    </div>
+
+    <div class="cards-grid" id="balance-cards"></div>
+
+    <div class="section">
+      <div class="section-head">
+        <h3>Solicitar</h3>
+      </div>
+      <div class="request-types" id="request-types"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-head">
+        <h3>Cumpleaños y aniversarios del equipo</h3>
+        <div class="month-nav">
+          <button id="month-prev">‹</button>
+          <span class="month-label" id="month-label">-</span>
+          <button id="month-next">›</button>
+        </div>
+      </div>
+      <div class="people-grid" id="people-grid"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-head">
+        <h3>Mis solicitudes</h3>
+      </div>
+      <div class="history-list" id="history-list"></div>
+    </div>
+  </main>
+</section>
+
+<!-- =============== REQUEST MODAL =============== -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="modal-title">-</h3>
+      <button class="modal-close" id="modal-close">✕</button>
+    </div>
+    <p class="modal-desc" id="modal-desc">-</p>
+    <div id="modal-error" class="error-msg"></div>
+    <form id="request-form">
+      <div id="modal-fields"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-outline" id="modal-cancel">Cancelar</button>
+        <button type="submit" class="btn" id="modal-submit">Enviar solicitud</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ======================================================================
+   CONFIG
+   Pegá acá la URL de tu Apps Script Web App una vez desplegado el backend
+   (ver Code.gs + README-setup.md).
+====================================================================== */
+const APPS_SCRIPT_URL = ""; // ej: "https://script.google.com/macros/s/XXXX/exec"
+
+/* ======================================================================
+   TIPOS DE LICENCIA — según Manual de Licencias y Permisos Glofy
+====================================================================== */
+const LEAVE_TYPES = [
+  { id:"permiso_corto", name:"Permiso corto / ausencia programada", desc:"Ausencia breve previamente acordada.", advance:"48 hs", fields:["fecha_inicio","hora","motivo"] },
+  { id:"vacaciones", name:"Vacaciones", desc:"Mínimo 1 semana, con al menos 2 meses de anticipación.", advance:"2 meses", fields:["fecha_inicio","fecha_fin","motivo_opcional"] },
+  { id:"cumpleanos", name:"Medio día off por cumpleaños", desc:"Medio día libre para festejar, dentro del mes de tu cumpleaños.", advance:"48 hs", fields:["fecha_inicio","hora"] },
+  { id:"salud", name:"Licencia o inconveniente de salud", desc:"Recordá enviar el certificado médico a people@glofy.co en cuanto puedas.", advance:"Lo antes posible", fields:["fecha_inicio","fecha_fin","motivo"] },
+  { id:"permiso_especial", name:"Permiso especial", desc:"Entradas/salidas anticipadas o ausencias parciales por motivos personales.", advance:"48 hs", fields:["fecha_inicio","hora","motivo"] },
+  { id:"guardia", name:"Compensación por guardia", desc:"1 día off por cada 2 jornadas de guardia pasiva realizadas (2:1).", advance:"48 hs", fields:["fecha_inicio","motivo_opcional"] },
+  { id:"nacimiento_familiar", name:"Nacimiento o situación familiar", desc:"Maternidad, adopción, paternidad, fallecimiento u otra situación familiar excepcional.", advance:"Lo antes posible", fields:["fecha_inicio","fecha_fin","motivo"] },
+  { id:"otras_especiales", name:"Otra licencia especial", desc:"Matrimonio, mudanza o trámites personales.", advance:"15 días", fields:["fecha_inicio","fecha_fin","motivo"] },
+];
+const LEAVE_BY_ID = Object.fromEntries(LEAVE_TYPES.map(t=>[t.id,t]));
+
+let session = null; // { nombre, email, fechaIngreso, fechaNacimiento, fotoPerfil }
+
+/* ======================================================================
+   API layer — habla siempre con el Apps Script Web App real
+====================================================================== */
+async function apiCall(action, payload){
+  if (!APPS_SCRIPT_URL){
+    throw new Error("Falta configurar APPS_SCRIPT_URL en index.html — ver README-setup.md.");
+  }
+  const res = await fetch(APPS_SCRIPT_URL, {
+    method:"POST",
+    headers:{ "Content-Type":"text/plain;charset=utf-8" }, // evita preflight CORS en Apps Script
+    body: JSON.stringify({ action, ...payload })
+  });
+  if (!res.ok) throw new Error("Error de red");
+  const data = await res.json();
+  if (!data.ok) throw new Error(data.error || "Error");
+  return data;
+}
+
+/* ======================================================================
+   Reglas de negocio — cálculo de balances
+====================================================================== */
+function daysBetween(a,b){ return Math.round((b-a)/86400000); }
+
+function computeVacationEntitlement(fechaIngresoStr, year){
+  const ingreso = new Date(fechaIngresoStr+"T00:00:00");
+  const dec31 = new Date(year,11,31);
+  const monthsAntiguedad = (dec31.getFullYear()-ingreso.getFullYear())*12 + (dec31.getMonth()-ingreso.getMonth()) - (dec31.getDate()<ingreso.getDate()?1:0);
+  if (monthsAntiguedad >= 6){
+    return { dias:14, criterio:"14 días corridos (6+ meses de antigüedad)" };
+  }
+  const today = new Date();
+  const hasta = today < dec31 ? today : dec31;
+  const worked = Math.max(0, daysBetween(ingreso, hasta));
+  const dias = Math.floor(worked/20);
+  return { dias, criterio:"1 día cada 20 trabajados (menos de 6 meses de antigüedad)" };
+}
+
+function computeBalances(emp, myReqs){
+  const year = new Date().getFullYear();
+  const approved = myReqs.filter(r=>r.estado==="Aprobado");
+
+  const vac = computeVacationEntitlement(emp.fechaIngreso, year);
+  const vacUsados = approved.filter(r=>r.tipo==="vacaciones" && r.fecha_inicio.startsWith(String(year))).reduce((s,r)=>s+Number(r.dias),0);
+
+  const saludUsados = approved.filter(r=>r.tipo==="salud" && r.fecha_inicio.startsWith(String(year))).reduce((s,r)=>s+Number(r.dias),0);
+
+  const cumpleUsado = approved.some(r=>r.tipo==="cumpleanos" && r.fecha_inicio.startsWith(String(year)));
+
+  const guardiaComp = approved.filter(r=>r.tipo==="guardia" && r.fecha_inicio.startsWith(String(year))).reduce((s,r)=>s+Number(r.dias),0);
+
+  return {
+    vacaciones: { total: vac.dias, usados: vacUsados, disponibles: Math.max(0,vac.dias-vacUsados), criterio: vac.criterio },
+    salud: { usados: saludUsados },
+    cumpleanos: { usado: cumpleUsado },
+    guardia: { diasCompensados: guardiaComp },
+  };
+}
+
+/* ======================================================================
+   UI helpers
+====================================================================== */
+const $ = sel => document.querySelector(sel);
+const el = (tag, cls, html) => { const e=document.createElement(tag); if(cls) e.className=cls; if(html!==undefined) e.innerHTML=html; return e; };
+
+function showToast(msg){
+  const t = $("#toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  setTimeout(()=>t.classList.remove("show"), 2800);
+}
+
+function initials(name){
+  return name.split(" ").filter(Boolean).slice(0,2).map(w=>w[0].toUpperCase()).join("");
+}
+
+/**
+ * Devuelve el HTML del avatar: la foto de perfil cargada por el equipo de
+ * Comms (la misma que usan en la firma de mail) si existe, o las iniciales
+ * como respaldo si no hay foto o si la imagen no carga. No es editable por
+ * la persona usuaria — no hay flujo de "subir tu foto" en esta versión.
+ */
+function avatarHTML(name, fotoUrl){
+  const fallback = initials(name);
+  if (!fotoUrl) return fallback;
+  return `<img src="${fotoUrl}" alt="${name}" onerror="this.parentElement.textContent='${fallback}'">`;
+}
+
+function fmtDate(str){
+  if(!str) return "";
+  const d = new Date(str+"T00:00:00");
+  return d.toLocaleDateString("es-AR",{ day:"2-digit", month:"short", year:"numeric" });
+}
+
+/* ======================================================================
+   LOGIN
+====================================================================== */
+$("#login-form").addEventListener("submit", async (e)=>{
+  e.preventDefault();
+  const btn = $("#login-btn");
+  const errBox = $("#login-error");
+  errBox.classList.remove("show");
+  btn.disabled = true; btn.textContent = "Ingresando...";
+  try{
+    const email = $("#login-email").value.trim();
+    const password = $("#login-password").value;
+    const res = await apiCall("login", { email, password });
+    const { password: _drop, ...safeEmp } = res.employee;
+    session = safeEmp;
+    if (res.debeCambiarPassword){
+      $("#login-screen").classList.remove("active");
+      $("#change-password-screen").classList.add("active");
+    } else {
+      await enterApp();
+    }
+  }catch(err){
+    errBox.textContent = err.message || "No pudimos validar tus datos.";
+    errBox.classList.add("show");
+  }finally{
+    btn.disabled = false; btn.textContent = "Ingresar";
+  }
+});
+
+$("#forgot-password-btn").addEventListener("click", async ()=>{
+  const email = $("#login-email").value.trim();
+  if (!email){
+    const errBox = $("#login-error");
+    errBox.textContent = "Escribí primero tu mail corporativo, así avisamos a People.";
+    errBox.classList.add("show");
+    return;
+  }
+  try{
+    await apiCall("forgotPassword", { email });
+    showToast("Le avisamos a People — te va a llegar una contraseña nueva por su cuenta.");
+  }catch(err){
+    showToast(err.message || "No pudimos enviar el aviso.");
+  }
+});
+
+$("#change-password-form").addEventListener("submit", async (e)=>{
+  e.preventDefault();
+  const btn = $("#change-password-btn");
+  const errBox = $("#change-password-error");
+  errBox.classList.remove("show");
+  const newPassword = $("#new-password").value;
+  const confirm = $("#new-password-confirm").value;
+  if (newPassword !== confirm){
+    errBox.textContent = "Las dos contraseñas no coinciden.";
+    errBox.classList.add("show");
+    return;
+  }
+  btn.disabled = true; btn.textContent = "Guardando...";
+  try{
+    await apiCall("changePassword", { email: session.email, newPassword });
+    $("#change-password-screen").classList.remove("active");
+    $("#change-password-form").reset();
+    await enterApp();
+  }catch(err){
+    errBox.textContent = err.message || "No pudimos guardar la contraseña.";
+    errBox.classList.add("show");
+  }finally{
+    btn.disabled = false; btn.textContent = "Guardar y continuar";
+  }
+});
+
+$("#logout-btn").addEventListener("click", ()=>{
+  session = null;
+  $("#app-screen").classList.remove("active");
+  $("#login-screen").classList.add("active");
+  $("#login-form").reset();
+});
+
+/* ======================================================================
+   APP — dashboard
+====================================================================== */
+async function enterApp(){
+  $("#login-screen").classList.remove("active");
+  $("#app-screen").classList.add("active");
+  $("#user-name").textContent = session.nombre;
+  $("#greet-name").textContent = session.nombre.split(" ")[0];
+  $("#user-avatar").innerHTML = avatarHTML(session.nombre, session.fotoPerfil);
+
+  renderRequestTypes();
+  await refreshDashboard();
+  renderMonthView();
+}
+
+async function refreshDashboard(){
+  const { balances, history } = await apiCall("getDashboard", { email: session.email });
+  renderBalances(balances);
+  renderHistory(history);
+}
+
+function renderBalances(b){
+  const wrap = $("#balance-cards");
+  wrap.innerHTML = "";
+
+  const vacPct = b.vacaciones.total ? Math.min(100, Math.round((b.vacaciones.disponibles/b.vacaciones.total)*100)) : 0;
+  wrap.appendChild(el("div","balance-card accent",`
+    <div class="label">Vacaciones disponibles</div>
+    <div class="value">${b.vacaciones.disponibles}<span class="unit">de ${b.vacaciones.total} días</span></div>
+    <div class="bar-track"><div class="bar-fill" style="width:${vacPct}%"></div></div>
+    <div class="foot">${b.vacaciones.criterio}</div>
+  `));
+
+  wrap.appendChild(el("div","balance-card",`
+    <div class="label">Días de salud usados (${new Date().getFullYear()})</div>
+    <div class="value">${b.salud.usados}<span class="unit">días</span></div>
+    <div class="foot">Se registran al aprobarse la licencia</div>
+  `));
+
+  wrap.appendChild(el("div","balance-card",`
+    <div class="label">Medio día por cumpleaños</div>
+    <div class="value" style="font-size:16px;">${b.cumpleanos.usado ? "Ya lo usaste este año" : "Disponible este año"}</div>
+    <span class="status-pill ${b.cumpleanos.usado ? 'used':'available'}">${b.cumpleanos.usado ? '● Usado' : '● Disponible'}</span>
+  `));
+
+  wrap.appendChild(el("div","balance-card",`
+    <div class="label">Guardias compensadas (${new Date().getFullYear()})</div>
+    <div class="value">${b.guardia.diasCompensados}<span class="unit">días off</span></div>
+    <div class="foot">Relación 2:1 sobre guardias pasivas</div>
+  `));
+}
+
+function renderHistory(history){
+  const wrap = $("#history-list");
+  wrap.innerHTML = "";
+  if (!history.length){
+    wrap.appendChild(el("div","empty-state","Todavía no hiciste ninguna solicitud."));
+    return;
+  }
+  history.forEach(r=>{
+    const type = LEAVE_BY_ID[r.tipo];
+    const row = el("div","history-row",`
+      <div class="h-main">
+        <span class="h-type">${type ? type.name : r.tipo}</span>
+        <span class="h-dates">${fmtDate(r.fecha_inicio)}${r.fecha_fin && r.fecha_fin!==r.fecha_inicio ? " → "+fmtDate(r.fecha_fin) : ""} · ${r.dias} día(s)</span>
+      </div>
+      <span class="badge ${r.estado}">${r.estado}</span>
+    `);
+    wrap.appendChild(row);
+  });
+}
+
+/* ======================================================================
+   Solicitar — tipos + modal
+====================================================================== */
+function renderRequestTypes(){
+  const wrap = $("#request-types");
+  wrap.innerHTML = "";
+  LEAVE_TYPES.forEach(t=>{
+    const btn = el("button","type-btn",`
+      <span class="t-name">${t.name}</span>
+      <span class="t-desc">${t.desc}</span>
+    `);
+    btn.addEventListener("click", ()=>openModal(t.id));
+    wrap.appendChild(btn);
+  });
+}
+
+function fieldTemplate(type, id){
+  const map = {
+    fecha_inicio: `<div class="field"><label>Fecha de inicio</label><input type="date" name="fecha_inicio" required></div>`,
+    fecha_fin: `<div class="field"><label>Fecha de fin</label><input type="date" name="fecha_fin" required></div>`,
+    hora: `<div class="field"><label>Horario</label><input type="time" name="hora"></div>`,
+    motivo: `<div class="field"><label>Motivo</label><textarea name="motivo" required placeholder="Contanos brevemente el motivo"></textarea></div>`,
+    motivo_opcional: `<div class="field"><label>Comentario (opcional)</label><textarea name="motivo" placeholder="Opcional"></textarea></div>`,
+  };
+  return type.fields.map(f=>map[f]).join("");
+}
+
+function openModal(typeId){
+  const type = LEAVE_BY_ID[typeId];
+  $("#modal-title").textContent = type.name;
+  $("#modal-desc").textContent = `${type.desc} Anticipación sugerida: ${type.advance}.`;
+  $("#modal-fields").innerHTML = fieldTemplate(type);
+  $("#modal-error").classList.remove("show");
+  $("#request-form").dataset.typeId = typeId;
+  $("#modal-overlay").classList.add("active");
+}
+
+function closeModal(){
+  $("#modal-overlay").classList.remove("active");
+  $("#request-form").reset();
+}
+$("#modal-close").addEventListener("click", closeModal);
+$("#modal-cancel").addEventListener("click", closeModal);
+$("#modal-overlay").addEventListener("click", (e)=>{ if(e.target.id==="modal-overlay") closeModal(); });
+
+$("#request-form").addEventListener("submit", async (e)=>{
+  e.preventDefault();
+  const typeId = e.target.dataset.typeId;
+  const type = LEAVE_BY_ID[typeId];
+  const fd = new FormData(e.target);
+  const fecha_inicio = fd.get("fecha_inicio");
+  const fecha_fin = fd.get("fecha_fin") || fecha_inicio;
+  const motivo = fd.get("motivo") || "";
+  const hora = fd.get("hora") || "";
+
+  let dias = 1;
+  if (typeId === "cumpleanos") dias = 0.5;
+  else if (fecha_inicio && fecha_fin){
+    dias = daysBetween(new Date(fecha_inicio+"T00:00:00"), new Date(fecha_fin+"T00:00:00")) + 1;
+  }
+
+  const btn = $("#modal-submit");
+  btn.disabled = true; btn.textContent = "Enviando...";
+  try{
+    await apiCall("submitRequest", { email:session.email, tipo:typeId, fecha_inicio, fecha_fin, hora, motivo, dias });
+    closeModal();
+    showToast(`Solicitud de "${type.name}" enviada a People.`);
+    await refreshDashboard();
+  }catch(err){
+    $("#modal-error").textContent = err.message || "No pudimos enviar la solicitud.";
+    $("#modal-error").classList.add("show");
+  }finally{
+    btn.disabled = false; btn.textContent = "Enviar solicitud";
+  }
+});
+
+/* ======================================================================
+   Cumpleaños y aniversarios del mes
+====================================================================== */
+let viewMonth = new Date().getMonth(); // 0-11
+const MONTH_NAMES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+
+$("#month-prev").addEventListener("click", ()=>{ viewMonth = (viewMonth+11)%12; renderMonthView(); });
+$("#month-next").addEventListener("click", ()=>{ viewMonth = (viewMonth+1)%12; renderMonthView(); });
+
+async function renderMonthView(){
+  $("#month-label").textContent = MONTH_NAMES[viewMonth];
+  const { employees } = await apiCall("getBirthdays", { month: viewMonth+1 });
+  const wrap = $("#people-grid");
+  wrap.innerHTML = "";
+
+  const items = [];
+  employees.forEach(emp=>{
+    if (emp.fechaNacimiento){
+      const [mm,dd] = emp.fechaNacimiento.split("-").map(Number);
+      if (mm-1 === viewMonth) items.push({ nombre:emp.nombre, fotoPerfil:emp.fotoPerfil, day:dd, kind:"birthday", label:"Cumpleaños" });
+    }
+    if (emp.fechaIngreso){
+      const d = new Date(emp.fechaIngreso+"T00:00:00");
+      if (d.getMonth() === viewMonth){
+        const years = new Date().getFullYear() - d.getFullYear();
+        if (years > 0) items.push({ nombre:emp.nombre, fotoPerfil:emp.fotoPerfil, day:d.getDate(), kind:"anniversary", label:`${years} año(s) en Glofy` });
+      }
+    }
+  });
+  items.sort((a,b)=>a.day-b.day);
+
+  if (!items.length){
+    wrap.appendChild(el("div","empty-state","Nadie festeja este mes."));
+    return;
+  }
+  items.forEach(it=>{
+    const card = el("div",`people-card ${it.kind}`,`
+      <div class="p-avatar">${avatarHTML(it.nombre, it.fotoPerfil)}</div>
+      <div>
+        <div class="p-name">${it.nombre}</div>
+        <div class="p-date">Día ${it.day} · ${it.label}</div>
+      </div>
+      <span class="tag-mini ${it.kind}">${it.kind==="birthday"?"Cumple":"Aniversario"}</span>
+    `);
+    wrap.appendChild(card);
+  });
+}
+</script>
+</body>
+</html>
