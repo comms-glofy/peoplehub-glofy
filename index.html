@@ -379,7 +379,7 @@
    Pegá acá la URL de tu Apps Script Web App una vez desplegado el backend
    (ver Code.gs + README-setup.md).
 ====================================================================== */
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbypWrDTeBaOsfKQe4uyeLVp_8mmfU__OXlJA-oFVAEYiU7zPOU04j5nySR7Nstjj6dl/exec"; // ej: "https://script.google.com/macros/s/XXXX/exec"
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxNUkIQedGXGPNVVb7XQ9HoQmMUHGEL-9C9v845nPE9nc-76TJ_wueXBZoGI715bjTk3g/exec"; // ej: "https://script.google.com/macros/s/XXXX/exec"
 
 /* ======================================================================
    TIPOS DE LICENCIA — según Manual de Licencias y Permisos Glofy
@@ -397,6 +397,20 @@ const LEAVE_TYPES = [
 const LEAVE_BY_ID = Object.fromEntries(LEAVE_TYPES.map(t=>[t.id,t]));
 
 let session = null; // { nombre, email, fechaIngreso, fechaNacimiento, fotoPerfil }
+const SESSION_KEY = "peoplehub_session"; // localStorage: no persiste contraseñas, solo estos datos no sensibles
+
+function saveSession(){
+  try{ localStorage.setItem(SESSION_KEY, JSON.stringify(session)); }catch(err){ /* si el navegador bloquea localStorage, seguimos sin sesión persistida */ }
+}
+function loadSession(){
+  try{
+    const raw = localStorage.getItem(SESSION_KEY);
+    return raw ? JSON.parse(raw) : null;
+  }catch(err){ return null; }
+}
+function clearSession(){
+  try{ localStorage.removeItem(SESSION_KEY); }catch(err){ /* no-op */ }
+}
 
 /* ======================================================================
    API layer — habla siempre con el Apps Script Web App real
@@ -510,6 +524,7 @@ $("#login-form").addEventListener("submit", async (e)=>{
       $("#login-screen").classList.remove("active");
       $("#change-password-screen").classList.add("active");
     } else {
+      saveSession();
       await enterApp();
     }
   }catch(err){
@@ -553,6 +568,7 @@ $("#change-password-form").addEventListener("submit", async (e)=>{
     await apiCall("changePassword", { email: session.email, newPassword });
     $("#change-password-screen").classList.remove("active");
     $("#change-password-form").reset();
+    saveSession();
     await enterApp();
   }catch(err){
     errBox.textContent = err.message || "No pudimos guardar la contraseña.";
@@ -564,10 +580,28 @@ $("#change-password-form").addEventListener("submit", async (e)=>{
 
 $("#logout-btn").addEventListener("click", ()=>{
   session = null;
+  clearSession();
   $("#app-screen").classList.remove("active");
   $("#login-screen").classList.add("active");
   $("#login-form").reset();
 });
+
+/* ======================================================================
+   Si ya había una sesión guardada (localStorage), entramos directo sin
+   pedir login de nuevo. Si el mail dejó de existir o algo falla, volvemos
+   silenciosamente a la pantalla de login.
+====================================================================== */
+(async function tryRestoreSession(){
+  const saved = loadSession();
+  if (!saved || !saved.email) return;
+  session = saved;
+  try{
+    await enterApp();
+  }catch(err){
+    session = null;
+    clearSession();
+  }
+})();
 
 /* ======================================================================
    APP — dashboard
