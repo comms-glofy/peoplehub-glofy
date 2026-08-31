@@ -177,6 +177,31 @@
 
   /* history table */
   .history-list{display:flex; flex-direction:column; gap:8px;}
+
+  /* benefit cards — Bonda / Wellhub */
+  .benefits-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:14px;}
+  .benefit-card{
+    position:relative; overflow:hidden;
+    background:var(--dark2); border:1px solid #454545; border-radius:var(--radius);
+    padding:20px; display:flex; flex-direction:column; gap:10px;
+  }
+  .benefit-bonda{background:linear-gradient(135deg, rgba(206,255,0,.10), rgba(206,255,0,.02) 60%), var(--dark2);}
+  .benefit-wellhub{background:linear-gradient(135deg, rgba(143,227,136,.10), rgba(143,227,136,.02) 60%), var(--dark2);}
+  .benefit-top{display:flex; align-items:center; justify-content:space-between;}
+  .benefit-logo{width:44px; height:44px; border-radius:12px; background:var(--offwhite); display:flex; align-items:center; justify-content:center; padding:7px; flex-shrink:0;}
+  .benefit-logo img{width:100%; height:100%; object-fit:contain; display:block;}
+  .benefit-chip{font-size:10px; font-weight:800; letter-spacing:.04em; text-transform:uppercase; padding:4px 9px; border-radius:999px; background:rgba(255,255,255,.07); color:#c8c8c8;}
+  .benefit-title{font-size:15px; font-weight:800;}
+  .benefit-desc{font-size:12.5px; color:#b9b9b9; line-height:1.5;}
+  .benefit-actions{display:flex; align-items:center; gap:14px; margin-top:4px; flex-wrap:wrap;}
+  .benefit-btn-primary{
+    background:var(--lime); color:var(--dark); font-weight:700; font-size:12.5px;
+    padding:9px 16px; border-radius:999px; text-decoration:none; transition:opacity .15s, transform .08s;
+  }
+  .benefit-btn-primary:hover{opacity:.88; transform:translateY(-1px);}
+  .benefit-wellhub .benefit-btn-primary{background:var(--ok); color:#173318;}
+  .benefit-btn-link{font-size:12px; font-weight:600; color:#9c9c9c; text-decoration:underline; text-underline-offset:3px;}
+  .benefit-btn-link:hover{color:var(--offwhite);}
   .history-row{
     display:flex; align-items:center; justify-content:space-between; gap:12px;
     background:var(--dark2); border:1px solid #3f3f3f; border-radius:var(--radius-sm);
@@ -358,6 +383,40 @@
         <h3>Mis solicitudes</h3>
       </div>
       <div class="history-list" id="history-list"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-head">
+        <h3>Otros beneficios</h3>
+      </div>
+      <div class="benefits-grid">
+        <div class="benefit-card benefit-bonda">
+          <div class="benefit-top">
+            <div class="benefit-logo"><img src="https://raw.githubusercontent.com/comms-glofy/peoplehub-glofy/refs/heads/main/Bonda.png" alt="Bonda"></div>
+            <span class="benefit-chip">Beneficio</span>
+          </div>
+          <h4 class="benefit-title">Bonda</h4>
+          <p class="benefit-desc">Accedé a los descuentos y beneficios de la plataforma Bonda, disponibles para todo el equipo de Glofy.</p>
+          <div class="benefit-actions">
+            <a class="benefit-btn-primary" href="https://glofyconvos.com/" target="_blank" rel="noopener">Acceder a Bonda</a>
+            <a class="benefit-btn-link" href="https://internaldocs.notion.site/manual-bonda?source=copy_link" target="_blank" rel="noopener">Ver manual</a>
+          </div>
+        </div>
+
+        <div class="benefit-card benefit-wellhub">
+          <div class="benefit-top">
+            <div class="benefit-logo"><img src="https://raw.githubusercontent.com/comms-glofy/peoplehub-glofy/refs/heads/main/wellhub-logo.png" alt="Wellhub"></div>
+            <span class="benefit-chip">Beneficio</span>
+          </div>
+          <h4 class="benefit-title">Wellhub</h4>
+          <p class="benefit-desc">Como beneficio, contás con la plataforma Wellhub. Por baja por inactividad, podés pedir la reactivación por WhatsApp indicando tu nombre completo.</p>
+          <div class="benefit-actions">
+            <a class="benefit-btn-primary" href="https://wellhub.com/es-ar" target="_blank" rel="noopener">Acceder a Wellhub</a>
+            <a class="benefit-btn-link" href="https://api.whatsapp.com/send?phone=5493413311800" target="_blank" rel="noopener">Solicitar reactivación</a>
+            <a class="benefit-btn-link" href="https://internaldocs.notion.site/manual-wellhub?source=copy_link" target="_blank" rel="noopener">Ver manual</a>
+          </div>
+        </div>
+      </div>
     </div>
   </main>
 </section>
