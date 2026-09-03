@@ -594,11 +594,22 @@ function avatarHTML(name, fotoUrl){
  * un fallback con la inicial del nombre/evento sobre el color de la
  * categoría (definido en CSS vía .people-card.<kind> .p-photo-fallback).
  */
+/**
+ * Reemplaza una foto de Calendario rota por el fallback con la inicial.
+ * Separado del onerror inline a propósito: meter HTML con comillas dobles
+ * (class="...") directo dentro de un atributo onerror="..." (también con
+ * comillas dobles) rompe el parseo del navegador — quedan letras y
+ * fragmentos sueltos en la tarjeta. Pasando solo la letra como argumento
+ * de esta función, no hay comillas anidadas y no se rompe nada.
+ */
+function photoFallback(imgEl, letter){
+  imgEl.parentElement.innerHTML = `<div class="p-photo-fallback">${letter}</div>`;
+}
+
 function squarePhotoHTML(name, fotoUrl){
   const letter = (name || "?").trim().charAt(0).toUpperCase();
-  const fallbackHTML = `<div class="p-photo-fallback">${letter}</div>`;
-  if (!fotoUrl) return fallbackHTML;
-  return `<img src="${fotoUrl}" alt="${name}" onerror="this.parentElement.innerHTML='${fallbackHTML.replace(/'/g, "\\'")}'">`;
+  if (!fotoUrl) return `<div class="p-photo-fallback">${letter}</div>`;
+  return `<img src="${fotoUrl}" alt="${name}" onerror="photoFallback(this,'${letter}')">`;
 }
 
 function fmtDate(str){
