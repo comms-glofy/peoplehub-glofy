@@ -88,12 +88,16 @@
   .chip.active{background:var(--lime); color:var(--dark); border-color:var(--lime);}
 
   .card-list{display:flex; flex-direction:column; gap:10px;}
-  .req-card, .emp-card{background:var(--dark2); border:1px solid #3f3f3f; border-radius:var(--radius-sm); padding:14px 16px; display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap;}
+  .req-card, .emp-card, .event-card{background:var(--dark2); border:1px solid #3f3f3f; border-radius:var(--radius-sm); padding:14px 16px; display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap;}
   .req-main, .emp-main{display:flex; flex-direction:column; gap:3px; min-width:200px;}
-  .req-name, .emp-name{font-size:13.5px; font-weight:700;}
-  .req-sub, .emp-sub{font-size:12px; color:#999;}
+  .event-main{display:flex; align-items:center; gap:12px; flex:1; min-width:200px;}
+  .event-text{display:flex; flex-direction:column; gap:3px;}
+  .req-name, .emp-name, .event-name{font-size:13.5px; font-weight:700;}
+  .req-sub, .emp-sub, .event-sub{font-size:12px; color:#999;}
   .req-motivo{font-size:11.5px; color:#8a8a8a; font-style:italic; margin-top:2px;}
-  .req-actions, .emp-actions{display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
+  .req-actions, .emp-actions, .event-actions{display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
+  .event-thumb{width:44px; height:44px; border-radius:10px; object-fit:cover; background:#2c2c2c; flex-shrink:0;}
+  .event-thumb-fallback{width:44px; height:44px; border-radius:10px; background:var(--ok); color:#173318; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:15px; flex-shrink:0;}
   .badge{font-size:11px; font-weight:700; padding:4px 10px; border-radius:999px; white-space:nowrap;}
   .badge.Pendiente{background:rgba(255,179,71,.14); color:var(--warn);}
   .badge.Aprobado{background:rgba(143,227,136,.14); color:var(--ok);}
@@ -159,6 +163,7 @@
     <div class="tabs">
       <button class="tab-btn active" data-tab="solicitudes">Solicitudes</button>
       <button class="tab-btn" data-tab="colaboradores">Colaboradores</button>
+      <button class="tab-btn" data-tab="calendario">Calendario</button>
     </div>
 
     <!-- SOLICITUDES -->
@@ -185,6 +190,16 @@
         <button class="btn btn-outline btn-sm" id="add-employee-btn">+ Agregar colaborador</button>
       </div>
       <div class="card-list" id="employees-list"></div>
+    </div>
+
+    <!-- CALENDARIO -->
+    <div class="tab-panel" id="tab-calendario">
+      <div class="section-head">
+        <h2>Calendario</h2>
+        <button class="btn btn-outline btn-sm" id="add-event-btn">+ Agregar evento</button>
+      </div>
+      <p class="modal-hint" style="margin:-10px 0 16px;">Cumpleaños y aniversarios se arman solos a partir de "Colaboradores" — acá solo se cargan eventos internos o fechas especiales adicionales.</p>
+      <div class="card-list" id="events-list"></div>
     </div>
   </main>
 </section>
@@ -285,13 +300,48 @@
   </div>
 </div>
 
+<!-- MODAL: agregar evento (Calendario) -->
+<div class="modal-overlay" id="event-modal-overlay">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>Agregar evento</h3>
+      <button class="modal-close" id="event-modal-close">✕</button>
+    </div>
+    <p class="modal-hint" style="margin-top:-10px;">Para eventos internos o fechas especiales (día de la Secretaria, aniversario de la empresa, etc). Cumpleaños y aniversarios de colaboradores no van acá, se arman solos.</p>
+    <div id="event-modal-error" class="error-msg"></div>
+    <form id="event-form">
+      <div class="field">
+        <label>Nombre del evento</label>
+        <input type="text" name="nombre" placeholder="Ej. Día de la Secretaria" required>
+      </div>
+      <div class="field">
+        <label>Fecha</label>
+        <input type="date" name="fecha" required>
+      </div>
+      <div class="checkbox-row">
+        <input type="checkbox" id="event-recurrente" name="recurrente" checked>
+        <label for="event-recurrente">Se repite todos los años en esta fecha</label>
+      </div>
+      <div class="field">
+        <label>Foto (opcional)</label>
+        <input type="file" name="foto" id="event-foto-input" accept="image/*">
+        <p class="modal-hint" id="event-foto-hint">Se sube sola a GitHub al guardar — no hace falta subirla a otro lado antes.</p>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-outline" id="event-modal-cancel">Cancelar</button>
+        <button type="submit" class="btn" id="event-modal-submit">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
 /* ======================================================================
    CONFIG — misma URL de Apps Script que usa index.html
 ====================================================================== */
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxvneGSx8X1u2nKN_xfQ4YWO9y53Ff71xa-CUUsF9DlYJuCaLDY4He-LAejwoxLrn-_-g/exec"; // ej: "https://script.google.com/macros/s/XXXX/exec"
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwiLPZNmwTia5XjlTGKnfFlsD2fl2Qzls_tUTD73CMf21SUfwFG4Cm_T3VXOekuDQ3WXQ/exec"; // ej: "https://script.google.com/macros/s/XXXX/exec"
 
 const LEAVE_TYPE_NAMES = {
   permiso_corto: "Permiso corto / ausencia programada",
@@ -361,6 +411,7 @@ $("#login-form").addEventListener("submit", async (e)=>{
     $("#app-screen").classList.add("active");
     await loadRequests();
     await loadEmployees();
+    await loadEvents();
   }catch(err){
     adminPassword = null;
     errBox.textContent = err.message || "No pudimos validar la contraseña.";
@@ -394,6 +445,7 @@ $("#logout-btn").addEventListener("click", ()=>{
     $("#app-screen").classList.add("active");
     await loadRequests();
     await loadEmployees();
+    await loadEvents();
   }catch(err){
     adminPassword = null;
     try{ localStorage.removeItem(ADMIN_SESSION_KEY); }catch(e2){ /* no-op */ }
@@ -645,6 +697,125 @@ $("#request-form").addEventListener("submit", async (e)=>{
   }catch(err){
     $("#request-modal-error").textContent = err.message || "No pudimos guardar la solicitud.";
     $("#request-modal-error").classList.add("show");
+  }finally{
+    btn.disabled = false; btn.textContent = "Guardar";
+  }
+});
+
+/* ======================================================================
+   CALENDARIO — eventos internos / fechas especiales
+====================================================================== */
+let allEvents = [];
+
+async function loadEvents(){
+  try{
+    const { events } = await apiCall("adminListEvents", {});
+    allEvents = events;
+    renderEvents();
+  }catch(err){
+    showToast(err.message || "No pudimos cargar el calendario.");
+  }
+}
+
+function renderEvents(){
+  const wrap = $("#events-list");
+  wrap.innerHTML = "";
+  if (!allEvents.length){
+    wrap.appendChild(el("div","empty-state","Todavía no cargaste ningún evento."));
+    return;
+  }
+  allEvents.forEach(ev=>{
+    const thumb = ev.foto
+      ? `<img class="event-thumb" src="${ev.foto}" alt="${ev.nombre}" onerror="this.outerHTML='<div class=&quot;event-thumb-fallback&quot;>${(ev.nombre||"?").trim().charAt(0).toUpperCase()}</div>'">`
+      : `<div class="event-thumb-fallback">${(ev.nombre||"?").trim().charAt(0).toUpperCase()}</div>`;
+    const card = el("div","event-card",`
+      <div class="event-main">
+        ${thumb}
+        <div class="event-text">
+          <span class="event-name">${ev.nombre}</span>
+          <span class="event-sub">${fmtDate(ev.fecha)} · ${ev.recurrente ? "Se repite todos los años" : "Puntual, solo este año"}</span>
+        </div>
+      </div>
+      <div class="event-actions">
+        <button class="btn btn-danger btn-sm">Eliminar</button>
+      </div>
+    `);
+    card.querySelector("button").addEventListener("click", ()=>deleteEvent(ev.rowNum, ev.nombre));
+    wrap.appendChild(card);
+  });
+}
+
+async function deleteEvent(rowNum, nombre){
+  if (!confirm(`¿Eliminar "${nombre}" del calendario?`)) return;
+  try{
+    await apiCall("adminDeleteEvent", { rowNum });
+    showToast("Evento eliminado.");
+    await loadEvents();
+  }catch(err){
+    showToast(err.message || "No pudimos eliminar el evento.");
+  }
+}
+
+$("#add-event-btn").addEventListener("click", openEventModal);
+
+function openEventModal(){
+  $("#event-modal-error").classList.remove("show");
+  $("#event-form").reset();
+  $("#event-recurrente").checked = true;
+  $("#event-modal-overlay").classList.add("active");
+}
+
+function closeEventModal(){
+  $("#event-modal-overlay").classList.remove("active");
+  $("#event-form").reset();
+}
+$("#event-modal-close").addEventListener("click", closeEventModal);
+$("#event-modal-cancel").addEventListener("click", closeEventModal);
+$("#event-modal-overlay").addEventListener("click", (e)=>{ if(e.target.id==="event-modal-overlay") closeEventModal(); });
+
+/** Convierte un File a base64 puro (sin el prefijo "data:...;base64,"),
+ *  que es lo que espera adminUploadEventPhoto en el backend. */
+function fileToBase64(file){
+  return new Promise((resolve, reject)=>{
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result.split(",")[1]);
+    reader.onerror = () => reject(new Error("No pudimos leer el archivo."));
+    reader.readAsDataURL(file);
+  });
+}
+
+$("#event-form").addEventListener("submit", async (e)=>{
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const btn = $("#event-modal-submit");
+  const errBox = $("#event-modal-error");
+  errBox.classList.remove("show");
+  btn.disabled = true;
+
+  try{
+    let fotoUrl = "";
+    const file = $("#event-foto-input").files[0];
+    if (file){
+      btn.textContent = "Subiendo foto...";
+      const base64 = await fileToBase64(file);
+      const uploadRes = await apiCall("adminUploadEventPhoto", { filename: file.name, base64 });
+      fotoUrl = uploadRes.url;
+    }
+
+    btn.textContent = "Guardando...";
+    await apiCall("adminAddEvent", {
+      nombre: fd.get("nombre"),
+      fecha: fd.get("fecha"),
+      recurrente: fd.get("recurrente") === "on",
+      foto: fotoUrl,
+    });
+
+    showToast("Evento agregado.");
+    closeEventModal();
+    await loadEvents();
+  }catch(err){
+    errBox.textContent = err.message || "No pudimos guardar el evento.";
+    errBox.classList.add("show");
   }finally{
     btn.disabled = false; btn.textContent = "Guardar";
   }
