@@ -219,39 +219,57 @@
     padding:26px; text-align:center; color:#888; font-size:13px;
   }
 
-  /* birthdays / anniversaries */
+  /* Calendario — cumpleaños, aniversarios y eventos */
   .month-nav{display:flex; align-items:center; gap:12px;}
   .month-nav button{background:var(--dark2); border:1px solid #454545; color:var(--offwhite); width:30px; height:30px; border-radius:8px; font-size:14px;}
   .month-nav button:hover{border-color:var(--lime);}
   .month-label{font-size:13px; font-weight:700; min-width:120px; text-align:center;}
-  .people-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:10px;}
-  e-card{
-    display:flex; align-items:center; gap:12px;
-    background:var(--dark2); border:1px solid #3f3f3f; border-radius:var(--radius-sm);
-    padding:12px 14px;
+
+  .people-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:16px;}
+  .people-card{
+    position:relative;
+    background:var(--dark2);
+    border-radius:var(--radius);
+    overflow:hidden;
+    border:2px solid #3f3f3f;
+    transition:transform .15s, box-shadow .15s;
   }
-.people-card{
-  position:relative;
-  display:flex; align-items:center; gap:12px;
-  background:var(--dark2); border:1px solid #3f3f3f; border-left:3px solid #3f3f3f; border-radius:var(--radius-sm);
-  padding:13px 15px;
-  transition:border-color .15s, transform .08s;
-}
-.people-card:hover{transform:translateY(-1px);}
-.people-card.birthday{border-left-color:var(--lime);}
-.people-card.anniversary{border-left-color:var(--warn);}
-.people-card .p-avatar{
-  width:40px; height:40px; border-radius:50%; flex-shrink:0;
-  display:flex; align-items:center; justify-content:center; font-weight:800; font-size:13px;
-  overflow:hidden; border:2px solid transparent;
-}
-.people-card.birthday .p-avatar{background:var(--lime); color:var(--dark); border-color:rgba(206,255,0,.4);}
-.people-card.anniversary .p-avatar{background:#4a4a4a; color:var(--offwhite); border-color:rgba(255,179,71,.4);}
-.people-card .p-name{font-size:13.5px; font-weight:700; line-height:1.25;}
-.people-card .p-date{font-size:11.5px; color:#999; margin-top:2px;}
-.tag-mini{font-size:10px; font-weight:800; letter-spacing:.04em; text-transform:uppercase; padding:4px 9px; border-radius:6px; margin-left:auto; white-space:nowrap;}
-.tag-mini.birthday{background:rgba(206,255,0,.16); color:var(--lime); border:1px solid rgba(206,255,0,.3);}
-.tag-mini.anniversary{background:rgba(255,179,71,.16); color:var(--warn); border:1px solid rgba(255,179,71,.3);}
+  .people-card:hover{transform:translateY(-2px);}
+  .people-card.birthday{border-color:var(--lime); box-shadow:0 0 0 1px rgba(206,255,0,.15), 0 8px 24px rgba(206,255,0,.08);}
+  .people-card.anniversary{border-color:var(--warn); box-shadow:0 0 0 1px rgba(255,179,71,.15), 0 8px 24px rgba(255,179,71,.08);}
+  .people-card.event{border-color:var(--ok); box-shadow:0 0 0 1px rgba(143,227,136,.15), 0 8px 24px rgba(143,227,136,.08);}
+
+  /* la foto SIEMPRE se recorta a cuadrado, sea cual sea la proporción real
+     del archivo original — aspect-ratio + object-fit:cover se encargan */
+  .people-card .p-photo-wrap{
+    position:relative; width:100%; aspect-ratio:1/1;
+    background:#2c2c2c;
+  }
+  .people-card .p-photo-wrap img{
+    width:100%; height:100%; object-fit:cover; display:block;
+  }
+  .people-card .p-photo-fallback{
+    width:100%; height:100%; display:flex; align-items:center; justify-content:center;
+    font-weight:800; font-size:32px; color:var(--dark);
+  }
+  .people-card.birthday .p-photo-fallback{background:var(--lime);}
+  .people-card.anniversary .p-photo-fallback{background:var(--warn); color:#3a2400;}
+  .people-card.event .p-photo-fallback{background:var(--ok); color:#173318;}
+
+  .p-tag{
+    position:absolute; top:10px; right:10px;
+    font-size:10.5px; font-weight:800; letter-spacing:.04em; text-transform:uppercase;
+    padding:5px 12px; border-radius:999px;
+    background:rgba(33,33,33,.8); backdrop-filter:blur(2px);
+    border:1.5px solid transparent;
+  }
+  .p-tag.birthday{color:var(--lime); border-color:var(--lime);}
+  .p-tag.anniversary{color:var(--warn); border-color:var(--warn);}
+  .p-tag.event{color:var(--ok); border-color:var(--ok);}
+
+  .people-card .p-body{padding:14px 15px 16px;}
+  .people-card .p-name{font-size:14.5px; font-weight:800; line-height:1.25; margin-bottom:3px;}
+  .people-card .p-date{font-size:12px; color:#9c9c9c;}
 
   /* modal */
   .modal-overlay{
@@ -368,7 +386,7 @@
 
     <div class="section">
       <div class="section-head">
-        <h3>Cumpleaños y aniversarios del equipo</h3>
+        <h3>Calendario</h3>
         <div class="month-nav">
           <button id="month-prev">‹</button>
           <span class="month-label" id="month-label">-</span>
@@ -448,7 +466,7 @@
    Pegá acá la URL de tu Apps Script Web App una vez desplegado el backend
    (ver Code.gs + README-setup.md).
 ====================================================================== */
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxvneGSx8X1u2nKN_xfQ4YWO9y53Ff71xa-CUUsF9DlYJuCaLDY4He-LAejwoxLrn-_-g/exec"; // ej: "https://script.google.com/macros/s/XXXX/exec"
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwiLPZNmwTia5XjlTGKnfFlsD2fl2Qzls_tUTD73CMf21SUfwFG4Cm_T3VXOekuDQ3WXQ/exec"; // ej: "https://script.google.com/macros/s/XXXX/exec"
 
 /* ======================================================================
    TIPOS DE LICENCIA — según Manual de Licencias y Permisos Glofy
@@ -566,6 +584,21 @@ function avatarHTML(name, fotoUrl){
   const fallback = initials(name);
   if (!fotoUrl) return fallback;
   return `<img src="${fotoUrl}" alt="${name}" onerror="this.parentElement.textContent='${fallback}'">`;
+}
+
+/**
+ * Foto cuadrada para las tarjetas del Calendario. Sea cual sea la
+ * proporción real del archivo (vertical, horizontal, lo que sea), el CSS
+ * (aspect-ratio:1/1 + object-fit:cover en .p-photo-wrap img) la recorta a
+ * cuadrado sin deformarla. Si no hay foto, o si la URL no carga, muestra
+ * un fallback con la inicial del nombre/evento sobre el color de la
+ * categoría (definido en CSS vía .people-card.<kind> .p-photo-fallback).
+ */
+function squarePhotoHTML(name, fotoUrl){
+  const letter = (name || "?").trim().charAt(0).toUpperCase();
+  const fallbackHTML = `<div class="p-photo-fallback">${letter}</div>`;
+  if (!fotoUrl) return fallbackHTML;
+  return `<img src="${fotoUrl}" alt="${name}" onerror="this.parentElement.innerHTML='${fallbackHTML.replace(/'/g, "\\'")}'">`;
 }
 
 function fmtDate(str){
@@ -821,7 +854,7 @@ $("#request-form").addEventListener("submit", async (e)=>{
 });
 
 /* ======================================================================
-   Cumpleaños y aniversarios del mes
+   Calendario — cumpleaños, aniversarios y eventos del mes
 ====================================================================== */
 let viewMonth = new Date().getMonth(); // 0-11
 const MONTH_NAMES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
@@ -831,38 +864,47 @@ $("#month-next").addEventListener("click", ()=>{ viewMonth = (viewMonth+1)%12; r
 
 async function renderMonthView(){
   $("#month-label").textContent = MONTH_NAMES[viewMonth];
-  const { employees } = await apiCall("getBirthdays", { month: viewMonth+1 });
   const wrap = $("#people-grid");
-  wrap.innerHTML = "";
+
+  const [{ employees }, { events }] = await Promise.all([
+    apiCall("getBirthdays", { month: viewMonth+1 }),
+    apiCall("getEvents", { month: viewMonth+1 }),
+  ]);
 
   const items = [];
   employees.forEach(emp=>{
     if (emp.fechaNacimiento){
       const [mm,dd] = emp.fechaNacimiento.split("-").map(Number);
-      if (mm-1 === viewMonth) items.push({ nombre:emp.nombre, fotoPerfil:emp.fotoPerfil, day:dd, kind:"birthday", label:"Cumpleaños" });
+      if (mm-1 === viewMonth) items.push({ nombre:emp.nombre, foto:emp.fotoPerfil, day:dd, kind:"birthday", tag:"Cumpleaños", sub:"Cumpleaños" });
     }
     if (emp.fechaIngreso){
       const d = new Date(emp.fechaIngreso+"T00:00:00");
       if (d.getMonth() === viewMonth){
         const years = new Date().getFullYear() - d.getFullYear();
-        if (years > 0) items.push({ nombre:emp.nombre, fotoPerfil:emp.fotoPerfil, day:d.getDate(), kind:"anniversary", label:`${years} año(s) en Glofy` });
+        if (years > 0) items.push({ nombre:emp.nombre, foto:emp.fotoPerfil, day:d.getDate(), kind:"anniversary", tag:"Aniversario", sub:`${years} año(s) en Glofy` });
       }
     }
   });
+  (events || []).forEach(ev=>{
+    items.push({ nombre:ev.nombre, foto:ev.foto, day:ev.day, kind:"event", tag:"Evento", sub:"Evento interno" });
+  });
   items.sort((a,b)=>a.day-b.day);
 
+  wrap.innerHTML = "";
   if (!items.length){
-    wrap.appendChild(el("div","empty-state","Nadie festeja este mes."));
+    wrap.appendChild(el("div","empty-state","Nada agendado este mes."));
     return;
   }
   items.forEach(it=>{
     const card = el("div",`people-card ${it.kind}`,`
-      <div class="p-avatar">${avatarHTML(it.nombre, it.fotoPerfil)}</div>
-      <div>
-        <div class="p-name">${it.nombre}</div>
-        <div class="p-date">Día ${it.day} · ${it.label}</div>
+      <div class="p-photo-wrap">
+        ${squarePhotoHTML(it.nombre, it.foto)}
+        <span class="p-tag ${it.kind}">${it.tag}</span>
       </div>
-      <span class="tag-mini ${it.kind}">${it.kind==="birthday"?"Cumple":"Aniversario"}</span>
+      <div class="p-body">
+        <div class="p-name">${it.nombre}</div>
+        <div class="p-date">Día ${it.day} · ${it.sub}</div>
+      </div>
     `);
     wrap.appendChild(card);
   });
