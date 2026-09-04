@@ -238,12 +238,18 @@
   .people-card.birthday{border-color:var(--lime); box-shadow:0 0 0 1px rgba(206,255,0,.15), 0 8px 24px rgba(206,255,0,.08);}
   .people-card.anniversary{border-color:var(--warn); box-shadow:0 0 0 1px rgba(255,179,71,.15), 0 8px 24px rgba(255,179,71,.08);}
   .people-card.event{border-color:var(--ok); box-shadow:0 0 0 1px rgba(143,227,136,.15), 0 8px 24px rgba(143,227,136,.08);}
+  .people-card.holiday{border-color:var(--danger); box-shadow:0 0 0 1px rgba(255,107,94,.15), 0 8px 24px rgba(255,107,94,.08);}
 
   /* la foto SIEMPRE se recorta a cuadrado, sea cual sea la proporción real
-     del archivo original — aspect-ratio + object-fit:cover se encargan */
+     del archivo original — aspect-ratio + object-fit:cover se encargan.
+     El border-radius va acá explícito (no solo heredado del overflow del
+     card padre) para que quede igual de redondeado sin importar si la
+     imagen de origen ya viene o no recortada así. */
   .people-card .p-photo-wrap{
     position:relative; width:100%; aspect-ratio:1/1;
     background:#2c2c2c;
+    border-radius:24px 24px 0 0;
+    overflow:hidden;
   }
   .people-card .p-photo-wrap img{
     width:100%; height:100%; object-fit:cover; display:block;
@@ -255,17 +261,19 @@
   .people-card.birthday .p-photo-fallback{background:var(--lime);}
   .people-card.anniversary .p-photo-fallback{background:var(--warn); color:#3a2400;}
   .people-card.event .p-photo-fallback{background:var(--ok); color:#173318;}
+  .people-card.holiday .p-photo-fallback{background:var(--danger); color:#3a0a06;}
 
   .p-tag{
     position:absolute; top:10px; right:10px;
     font-size:10.5px; font-weight:800; letter-spacing:.04em; text-transform:uppercase;
     padding:5px 12px; border-radius:999px;
-    background:rgba(33,33,33,.8); backdrop-filter:blur(2px);
+    backdrop-filter:blur(2px);
     border:1.5px solid transparent;
   }
-  .p-tag.birthday{color:var(--lime); border-color:var(--lime);}
-  .p-tag.anniversary{color:var(--warn); border-color:var(--warn);}
-  .p-tag.event{color:var(--ok); border-color:var(--ok);}
+  .p-tag.birthday{color:var(--lime); border-color:var(--lime); background:rgba(206,255,0,.2);}
+  .p-tag.anniversary{color:var(--warn); border-color:var(--warn); background:rgba(255,179,71,.2);}
+  .p-tag.event{color:var(--ok); border-color:var(--ok); background:rgba(143,227,136,.2);}
+  .p-tag.holiday{color:var(--danger); border-color:var(--danger); background:rgba(255,107,94,.2);}
 
   .people-card .p-body{padding:14px 15px 16px;}
   .people-card .p-name{font-size:14.5px; font-weight:800; line-height:1.25; margin-bottom:3px;}
@@ -873,6 +881,18 @@ const MONTH_NAMES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","A
 $("#month-prev").addEventListener("click", ()=>{ viewMonth = (viewMonth+11)%12; renderMonthView(); });
 $("#month-next").addEventListener("click", ()=>{ viewMonth = (viewMonth+1)%12; renderMonthView(); });
 
+/**
+ * Devuelve el día de la semana real de un día del mes que se está mirando
+ * (ej. "Viernes"), calculado sobre el año actual — no hay selector de año
+ * en el Calendario, así que se asume siempre el año en curso, igual
+ * criterio que ya se usa para decidir si un evento puntual sigue vigente.
+ */
+function weekdayLabel(day, month){
+  const d = new Date(new Date().getFullYear(), month, day);
+  const label = d.toLocaleDateString("es-AR", { weekday:"long" });
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}
+
 async function renderMonthView(){
   $("#month-label").textContent = MONTH_NAMES[viewMonth];
   const wrap = $("#people-grid");
@@ -897,7 +917,11 @@ async function renderMonthView(){
     }
   });
   (events || []).forEach(ev=>{
-    items.push({ nombre:ev.nombre, foto:ev.foto, day:ev.day, kind:"event", tag:"Evento", sub:"Evento interno" });
+    if (ev.tipo === "feriado"){
+      items.push({ nombre:ev.nombre, foto:ev.foto, day:ev.day, kind:"holiday", tag:"Feriado", sub:"No laborable" });
+    } else {
+      items.push({ nombre:ev.nombre, foto:ev.foto, day:ev.day, kind:"event", tag:"Evento", sub:"Evento interno" });
+    }
   });
   items.sort((a,b)=>a.day-b.day);
 
@@ -914,7 +938,7 @@ async function renderMonthView(){
       </div>
       <div class="p-body">
         <div class="p-name">${it.nombre}</div>
-        <div class="p-date">Día ${it.day} · ${it.sub}</div>
+        <div class="p-date">${weekdayLabel(it.day, viewMonth)} ${it.day} · ${it.sub}</div>
       </div>
     `);
     wrap.appendChild(card);
