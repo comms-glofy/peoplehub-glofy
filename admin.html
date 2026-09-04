@@ -196,9 +196,12 @@
     <div class="tab-panel" id="tab-calendario">
       <div class="section-head">
         <h2>Calendario</h2>
-        <button class="btn btn-outline btn-sm" id="add-event-btn">+ Agregar evento</button>
+        <div style="display:flex; gap:8px;">
+          <button class="btn btn-outline btn-sm" id="add-holiday-btn">+ Agregar feriado</button>
+          <button class="btn btn-outline btn-sm" id="add-event-btn">+ Agregar evento</button>
+        </div>
       </div>
-      <p class="modal-hint" style="margin:-10px 0 16px;">Cumpleaños y aniversarios se arman solos a partir de "Colaboradores" — acá solo se cargan eventos internos o fechas especiales adicionales.</p>
+      <p class="modal-hint" style="margin:-10px 0 16px;">Cumpleaños y aniversarios se arman solos a partir de "Colaboradores" — acá solo se cargan eventos internos, fechas especiales y feriados adicionales.</p>
       <div class="card-list" id="events-list"></div>
     </div>
   </main>
@@ -330,6 +333,36 @@
       <div class="modal-actions">
         <button type="button" class="btn btn-outline" id="event-modal-cancel">Cancelar</button>
         <button type="submit" class="btn" id="event-modal-submit">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- MODAL: agregar feriado (Calendario) -->
+<div class="modal-overlay" id="holiday-modal-overlay">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>Agregar feriado</h3>
+      <button class="modal-close" id="holiday-modal-close">✕</button>
+    </div>
+    <p class="modal-hint" style="margin-top:-10px;">Para indicar un día no laborable. Siempre usa la misma imagen fija — no se sube foto acá.</p>
+    <div id="holiday-modal-error" class="error-msg"></div>
+    <form id="holiday-form">
+      <div class="field">
+        <label>Descripción</label>
+        <input type="text" name="nombre" placeholder="Ej. Día del Trabajador" required>
+      </div>
+      <div class="field">
+        <label>Fecha</label>
+        <input type="date" name="fecha" required>
+      </div>
+      <div class="checkbox-row">
+        <input type="checkbox" id="holiday-recurrente" name="recurrente" checked>
+        <label for="holiday-recurrente">Se repite todos los años en esta fecha</label>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-outline" id="holiday-modal-cancel">Cancelar</button>
+        <button type="submit" class="btn" id="holiday-modal-submit">Guardar</button>
       </div>
     </form>
   </div>
@@ -728,12 +761,13 @@ function renderEvents(){
     const thumb = ev.foto
       ? `<img class="event-thumb" src="${ev.foto}" alt="${ev.nombre}" onerror="this.outerHTML='<div class=&quot;event-thumb-fallback&quot;>${(ev.nombre||"?").trim().charAt(0).toUpperCase()}</div>'">`
       : `<div class="event-thumb-fallback">${(ev.nombre||"?").trim().charAt(0).toUpperCase()}</div>`;
+    const tipoLabel = ev.tipo === "feriado" ? "Feriado" : "Evento";
     const card = el("div","event-card",`
       <div class="event-main">
         ${thumb}
         <div class="event-text">
           <span class="event-name">${ev.nombre}</span>
-          <span class="event-sub">${fmtDate(ev.fecha)} · ${ev.recurrente ? "Se repite todos los años" : "Puntual, solo este año"}</span>
+          <span class="event-sub">${tipoLabel} · ${fmtDate(ev.fecha)} · ${ev.recurrente ? "Se repite todos los años" : "Puntual, solo este año"}</span>
         </div>
       </div>
       <div class="event-actions">
@@ -815,6 +849,55 @@ $("#event-form").addEventListener("submit", async (e)=>{
     await loadEvents();
   }catch(err){
     errBox.textContent = err.message || "No pudimos guardar el evento.";
+    errBox.classList.add("show");
+  }finally{
+    btn.disabled = false; btn.textContent = "Guardar";
+  }
+});
+
+/* ======================================================================
+   AGREGAR FERIADO (Calendario) — foto siempre fija, sin subida
+====================================================================== */
+$("#add-holiday-btn").addEventListener("click", openHolidayModal);
+
+function openHolidayModal(){
+  $("#holiday-modal-error").classList.remove("show");
+  $("#holiday-form").reset();
+  $("#holiday-recurrente").checked = true;
+  $("#holiday-modal-overlay").classList.add("active");
+}
+
+function closeHolidayModal(){
+  $("#holiday-modal-overlay").classList.remove("active");
+  $("#holiday-form").reset();
+}
+$("#holiday-modal-close").addEventListener("click", closeHolidayModal);
+$("#holiday-modal-cancel").addEventListener("click", closeHolidayModal);
+$("#holiday-modal-overlay").addEventListener("click", (e)=>{ if(e.target.id==="holiday-modal-overlay") closeHolidayModal(); });
+
+$("#holiday-form").addEventListener("submit", async (e)=>{
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const btn = $("#holiday-modal-submit");
+  const errBox = $("#holiday-modal-error");
+  errBox.classList.remove("show");
+  btn.disabled = true; btn.textContent = "Guardando...";
+
+  try{
+    // No mandamos "foto" — el backend siempre fuerza la imagen fija de
+    // feriado cuando tipo es "feriado", así no depende de este archivo.
+    await apiCall("adminAddEvent", {
+      nombre: fd.get("nombre"),
+      fecha: fd.get("fecha"),
+      recurrente: fd.get("recurrente") === "on",
+      tipo: "feriado",
+    });
+
+    showToast("Feriado agregado.");
+    closeHolidayModal();
+    await loadEvents();
+  }catch(err){
+    errBox.textContent = err.message || "No pudimos guardar el feriado.";
     errBox.classList.add("show");
   }finally{
     btn.disabled = false; btn.textContent = "Guardar";
