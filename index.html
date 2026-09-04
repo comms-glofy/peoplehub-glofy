@@ -267,13 +267,19 @@
     position:absolute; top:10px; right:10px;
     font-size:10.5px; font-weight:800; letter-spacing:.04em; text-transform:uppercase;
     padding:5px 12px; border-radius:999px;
-    backdrop-filter:blur(2px);
+    backdrop-filter:blur(6px);
     border:1.5px solid transparent;
+    text-shadow:0 1px 3px rgba(0,0,0,.75);
+    box-shadow:0 2px 8px rgba(0,0,0,.35);
   }
-  .p-tag.birthday{color:var(--lime); border-color:var(--lime); background:rgba(206,255,0,.2);}
-  .p-tag.anniversary{color:var(--warn); border-color:var(--warn); background:rgba(255,179,71,.2);}
-  .p-tag.event{color:var(--ok); border-color:var(--ok); background:rgba(143,227,136,.2);}
-  .p-tag.holiday{color:var(--danger); border-color:var(--danger); background:rgba(255,107,94,.2);}
+  /* el color pedido (mismo tono que el texto, tenue) va SIEMPRE sobre una
+     base bien oscura — así se lee igual de bien sobre una foto clara,
+     oscura, o del mismo tono que la pastilla (ej. amarronado con
+     "aniversario" en ámbar), en vez de depender de lo que haya atrás */
+  .p-tag.birthday{color:var(--lime); border-color:var(--lime); background:linear-gradient(rgba(206,255,0,.3),rgba(206,255,0,.3)), rgba(10,10,10,.78);}
+  .p-tag.anniversary{color:var(--warn); border-color:var(--warn); background:linear-gradient(rgba(255,179,71,.3),rgba(255,179,71,.3)), rgba(10,10,10,.78);}
+  .p-tag.event{color:var(--ok); border-color:var(--ok); background:linear-gradient(rgba(143,227,136,.3),rgba(143,227,136,.3)), rgba(10,10,10,.78);}
+  .p-tag.holiday{color:var(--danger); border-color:var(--danger); background:linear-gradient(rgba(255,107,94,.3),rgba(255,107,94,.3)), rgba(10,10,10,.78);}
 
   .people-card .p-body{padding:14px 15px 16px;}
   .people-card .p-name{font-size:14.5px; font-weight:800; line-height:1.25; margin-bottom:3px;}
