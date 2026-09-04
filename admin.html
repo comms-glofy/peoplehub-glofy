@@ -345,7 +345,7 @@
       <h3>Agregar feriado</h3>
       <button class="modal-close" id="holiday-modal-close">✕</button>
     </div>
-    <p class="modal-hint" style="margin-top:-10px;">Para indicar un día no laborable. Siempre usa la misma imagen fija — no se sube foto acá.</p>
+    <p class="modal-hint" style="margin-top:-10px;">Para indicar un día no laborable. Siempre usa la misma imagen fija — no se sube foto acá. Se repite todos los años automáticamente.</p>
     <div id="holiday-modal-error" class="error-msg"></div>
     <form id="holiday-form">
       <div class="field">
@@ -355,10 +355,6 @@
       <div class="field">
         <label>Fecha</label>
         <input type="date" name="fecha" required>
-      </div>
-      <div class="checkbox-row">
-        <input type="checkbox" id="holiday-recurrente" name="recurrente" checked>
-        <label for="holiday-recurrente">Se repite todos los años en esta fecha</label>
       </div>
       <div class="modal-actions">
         <button type="button" class="btn btn-outline" id="holiday-modal-cancel">Cancelar</button>
@@ -863,7 +859,6 @@ $("#add-holiday-btn").addEventListener("click", openHolidayModal);
 function openHolidayModal(){
   $("#holiday-modal-error").classList.remove("show");
   $("#holiday-form").reset();
-  $("#holiday-recurrente").checked = true;
   $("#holiday-modal-overlay").classList.add("active");
 }
 
@@ -884,13 +879,13 @@ $("#holiday-form").addEventListener("submit", async (e)=>{
   btn.disabled = true; btn.textContent = "Guardando...";
 
   try{
-    // No mandamos "foto" — el backend siempre fuerza la imagen fija de
-    // feriado cuando tipo es "feriado", así no depende de este archivo.
+    // No mandamos "foto" ni "recurrente" — el backend siempre fuerza la
+    // imagen fija y marca el feriado como recurrente, así no depende de
+    // que este archivo mande el valor correcto.
     await apiCall("adminAddEvent", {
       nombre: fd.get("nombre"),
       fecha: fd.get("fecha"),
-      recurrente: fd.get("recurrente") === "on",
-      tipo: "feriado",
+      feriado: true,
     });
 
     showToast("Feriado agregado.");
