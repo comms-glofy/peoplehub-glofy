@@ -196,12 +196,19 @@
     <div class="tab-panel" id="tab-calendario">
       <div class="section-head">
         <h2>Calendario</h2>
-        <div style="display:flex; gap:8px;">
-          <button class="btn btn-outline btn-sm" id="add-holiday-btn">+ Agregar feriado</button>
-          <button class="btn btn-outline btn-sm" id="add-event-btn">+ Agregar evento</button>
-        </div>
       </div>
-      <p class="modal-hint" style="margin:-10px 0 16px;">Cumpleaños y aniversarios se arman solos a partir de "Colaboradores" — acá solo se cargan eventos internos, fechas especiales y feriados adicionales.</p>
+      <p class="modal-hint" style="margin:-10px 0 20px;">Cumpleaños y aniversarios se arman solos a partir de "Colaboradores" — acá se cargan feriados y eventos internos o fechas especiales adicionales.</p>
+
+      <div class="section-head" style="margin-top:8px;">
+        <h3 style="font-size:14px;">Feriados</h3>
+        <button class="btn btn-outline btn-sm" id="add-holiday-btn">+ Agregar feriado</button>
+      </div>
+      <div class="card-list" id="feriados-list" style="margin-bottom:28px;"></div>
+
+      <div class="section-head">
+        <h3 style="font-size:14px;">Eventos internos</h3>
+        <button class="btn btn-outline btn-sm" id="add-event-btn">+ Agregar evento</button>
+      </div>
       <div class="card-list" id="events-list"></div>
     </div>
   </main>
@@ -370,7 +377,10 @@
 /* ======================================================================
    CONFIG — misma URL de Apps Script que usa index.html
 ====================================================================== */
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxnmVq3fdSECOBKhExZSmyy2D9W5yKNT0XDjERZ710L3yEomhffzHKL7WWgb4JeckuDHg/exec"; // ej: "https://script.google.com/macros/s/XXXX/exec"
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx0bK9ecpn7SOD2WXE6Df1loRPYdyllCh0ucPwoVnjUdGwlh1U8v4HSxJZ8qXH2yBu8Vw/exec"; // ej: "https://script.google.com/macros/s/XXXX/exec"
+
+// Misma imagen fija que usa el backend para todo feriado (HOLIDAY_PHOTO_URL en Code.gs) — el backend no la manda en la lista, así que la repetimos acá para la miniatura.
+const HOLIDAY_PHOTO_URL_FRONT = "https://raw.githubusercontent.com/comms-glofy/peoplehub-glofy/refs/heads/main/off.png";
 
 const LEAVE_TYPE_NAMES = {
   permiso_corto: "Permiso corto / ausencia programada",
@@ -440,6 +450,7 @@ $("#login-form").addEventListener("submit", async (e)=>{
     $("#app-screen").classList.add("active");
     await loadRequests();
     await loadEmployees();
+    await loadFeriados();
     await loadEvents();
   }catch(err){
     adminPassword = null;
@@ -474,6 +485,7 @@ $("#logout-btn").addEventListener("click", ()=>{
     $("#app-screen").classList.add("active");
     await loadRequests();
     await loadEmployees();
+    await loadFeriados();
     await loadEvents();
   }catch(err){
     adminPassword = null;
@@ -732,9 +744,56 @@ $("#request-form").addEventListener("submit", async (e)=>{
 });
 
 /* ======================================================================
-   CALENDARIO — eventos internos / fechas especiales
+   CALENDARIO — feriados y eventos internos / fechas especiales
 ====================================================================== */
+let allFeriados = [];
 let allEvents = [];
+
+async function loadFeriados(){
+  try{
+    const { feriados } = await apiCall("adminListFeriados", {});
+    allFeriados = feriados;
+    renderFeriados();
+  }catch(err){
+    showToast(err.message || "No pudimos cargar los feriados.");
+  }
+}
+
+function renderFeriados(){
+  const wrap = $("#feriados-list");
+  wrap.innerHTML = "";
+  if (!allFeriados.length){
+    wrap.appendChild(el("div","empty-state","Todavía no cargaste ningún feriado."));
+    return;
+  }
+  allFeriados.forEach(f=>{
+    const card = el("div","event-card",`
+      <div class="event-main">
+        <img class="event-thumb" src="${HOLIDAY_PHOTO_URL_FRONT}" alt="Feriado">
+        <div class="event-text">
+          <span class="event-name">${f.nombre}</span>
+          <span class="event-sub">Feriado · ${fmtDate(f.fecha)} · Se repite todos los años</span>
+        </div>
+      </div>
+      <div class="event-actions">
+        <button class="btn btn-danger btn-sm">Eliminar</button>
+      </div>
+    `);
+    card.querySelector("button").addEventListener("click", ()=>deleteFeriado(f.rowNum, f.nombre));
+    wrap.appendChild(card);
+  });
+}
+
+async function deleteFeriado(rowNum, nombre){
+  if (!confirm(`¿Eliminar el feriado "${nombre}"?`)) return;
+  try{
+    await apiCall("adminDeleteFeriado", { rowNum });
+    showToast("Feriado eliminado.");
+    await loadFeriados();
+  }catch(err){
+    showToast(err.message || "No pudimos eliminar el feriado.");
+  }
+}
 
 async function loadEvents(){
   try{
@@ -742,7 +801,7 @@ async function loadEvents(){
     allEvents = events;
     renderEvents();
   }catch(err){
-    showToast(err.message || "No pudimos cargar el calendario.");
+    showToast(err.message || "No pudimos cargar los eventos.");
   }
 }
 
@@ -757,13 +816,12 @@ function renderEvents(){
     const thumb = ev.foto
       ? `<img class="event-thumb" src="${ev.foto}" alt="${ev.nombre}" onerror="this.outerHTML='<div class=&quot;event-thumb-fallback&quot;>${(ev.nombre||"?").trim().charAt(0).toUpperCase()}</div>'">`
       : `<div class="event-thumb-fallback">${(ev.nombre||"?").trim().charAt(0).toUpperCase()}</div>`;
-    const tipoLabel = ev.tipo === "feriado" ? "Feriado" : "Evento";
     const card = el("div","event-card",`
       <div class="event-main">
         ${thumb}
         <div class="event-text">
           <span class="event-name">${ev.nombre}</span>
-          <span class="event-sub">${tipoLabel} · ${fmtDate(ev.fecha)} · ${ev.recurrente ? "Se repite todos los años" : "Puntual, solo este año"}</span>
+          <span class="event-sub">${fmtDate(ev.fecha)} · ${ev.recurrente ? "Se repite todos los años" : "Puntual, solo este año"}</span>
         </div>
       </div>
       <div class="event-actions">
@@ -879,18 +937,17 @@ $("#holiday-form").addEventListener("submit", async (e)=>{
   btn.disabled = true; btn.textContent = "Guardando...";
 
   try{
-    // No mandamos "foto" ni "recurrente" — el backend siempre fuerza la
-    // imagen fija y marca el feriado como recurrente, así no depende de
-    // que este archivo mande el valor correcto.
-    await apiCall("adminAddEvent", {
+    // No mandamos "foto" — el backend siempre fuerza la imagen fija para
+    // todo feriado (HOLIDAY_PHOTO_URL en Code.gs), y siempre se repite
+    // todos los años, así que tampoco hace falta mandar eso.
+    await apiCall("adminAddFeriado", {
       nombre: fd.get("nombre"),
       fecha: fd.get("fecha"),
-      feriado: true,
     });
 
     showToast("Feriado agregado.");
     closeHolidayModal();
-    await loadEvents();
+    await loadFeriados();
   }catch(err){
     errBox.textContent = err.message || "No pudimos guardar el feriado.";
     errBox.classList.add("show");
