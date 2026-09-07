@@ -480,7 +480,7 @@
    Pegá acá la URL de tu Apps Script Web App una vez desplegado el backend
    (ver Code.gs + README-setup.md).
 ====================================================================== */
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxnmVq3fdSECOBKhExZSmyy2D9W5yKNT0XDjERZ710L3yEomhffzHKL7WWgb4JeckuDHg/exec"; // ej: "https://script.google.com/macros/s/XXXX/exec"
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx0bK9ecpn7SOD2WXE6Df1loRPYdyllCh0ucPwoVnjUdGwlh1U8v4HSxJZ8qXH2yBu8Vw/exec"; // ej: "https://script.google.com/macros/s/XXXX/exec"
 
 /* ======================================================================
    TIPOS DE LICENCIA — según Manual de Licencias y Permisos Glofy
@@ -903,9 +903,10 @@ async function renderMonthView(){
   $("#month-label").textContent = MONTH_NAMES[viewMonth];
   const wrap = $("#people-grid");
 
-  const [{ employees }, { events }] = await Promise.all([
+  const [{ employees }, { events }, { feriados }] = await Promise.all([
     apiCall("getBirthdays", { month: viewMonth+1 }),
     apiCall("getEvents", { month: viewMonth+1 }),
+    apiCall("getFeriados", { month: viewMonth+1 }),
   ]);
 
   const items = [];
@@ -923,11 +924,10 @@ async function renderMonthView(){
     }
   });
   (events || []).forEach(ev=>{
-    if (ev.tipo === "feriado"){
-      items.push({ nombre:ev.nombre, foto:ev.foto, day:ev.day, kind:"holiday", tag:"Feriado", sub:"No laborable" });
-    } else {
-      items.push({ nombre:ev.nombre, foto:ev.foto, day:ev.day, kind:"event", tag:"Evento", sub:"Evento interno" });
-    }
+    items.push({ nombre:ev.nombre, foto:ev.foto, day:ev.day, kind:"event", tag:"Evento", sub:"Evento interno" });
+  });
+  (feriados || []).forEach(f=>{
+    items.push({ nombre:f.nombre, foto:f.foto, day:f.day, kind:"holiday", tag:"Feriado", sub:"No laborable" });
   });
   items.sort((a,b)=>a.day-b.day);
 
