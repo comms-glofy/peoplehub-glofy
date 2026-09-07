@@ -210,6 +210,16 @@
   .history-row .h-main{display:flex; flex-direction:column; gap:2px;}
   .history-row .h-type{font-size:13px; font-weight:700;}
   .history-row .h-dates{font-size:12px; color:#999;}
+  .history-row .h-right{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
+  .h-gcal-btn{
+    display:inline-flex; align-items:center; gap:6px;
+    font-size:11.5px; font-weight:700;
+    padding:6px 12px; border-radius:999px;
+    background:transparent; border:1px solid #4a4a4a; color:#c8c8c8;
+    text-decoration:none; white-space:nowrap;
+    transition:border-color .15s, color .15s;
+  }
+  .h-gcal-btn:hover{border-color:var(--lime); color:var(--lime);}
   .badge{font-size:11px; font-weight:700; padding:4px 10px; border-radius:999px; white-space:nowrap;}
   .badge.Pendiente{background:rgba(255,179,71,.14); color:var(--warn);}
   .badge.Aprobado{background:rgba(143,227,136,.14); color:var(--ok);}
@@ -782,6 +792,30 @@ function renderBalances(b){
   `));
 }
 
+/**
+ * Arma el link de "Agregar a Google Calendar" para una solicitud ya
+ * aprobada. Es un link con parámetros — Google abre su propia pantalla de
+ * creación de evento con todo precargado, la persona solo confirma y
+ * guarda. No requiere ningún permiso ni backend nuevo.
+ * Formato de fechas: AAAAMMDD/AAAAMMDD, con el fin exclusivo (por eso se
+ * le suma 1 día a la fecha de fin real, como pide la convención de
+ * Google Calendar para eventos de día completo).
+ */
+function buildGcalUrl(r){
+  const type = LEAVE_BY_ID[r.tipo];
+  const typeName = type ? type.name : r.tipo;
+  const title = encodeURIComponent(`${typeName} — Glofy`);
+  const details = encodeURIComponent(
+    `Licencia aprobada en People Hub: ${typeName}${r.motivo ? " — " + r.motivo : ""}`
+  );
+  const start = r.fecha_inicio.replace(/-/g, "");
+  const endBase = r.fecha_fin || r.fecha_inicio;
+  const endDate = new Date(endBase + "T00:00:00");
+  endDate.setDate(endDate.getDate() + 1); // fin exclusivo
+  const end = `${endDate.getFullYear()}${String(endDate.getMonth()+1).padStart(2,"0")}${String(endDate.getDate()).padStart(2,"0")}`;
+  return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${start}/${end}&details=${details}`;
+}
+
 function renderHistory(history){
   const wrap = $("#history-list");
   wrap.innerHTML = "";
@@ -791,12 +825,18 @@ function renderHistory(history){
   }
   history.forEach(r=>{
     const type = LEAVE_BY_ID[r.tipo];
+    const gcalBtn = r.estado === "Aprobado"
+      ? `<a class="h-gcal-btn" href="${buildGcalUrl(r)}" target="_blank" rel="noopener">+ Google Calendar</a>`
+      : "";
     const row = el("div","history-row",`
       <div class="h-main">
         <span class="h-type">${type ? type.name : r.tipo}</span>
         <span class="h-dates">${fmtDate(r.fecha_inicio)}${r.fecha_fin && r.fecha_fin!==r.fecha_inicio ? " → "+fmtDate(r.fecha_fin) : ""} · ${r.dias} día(s)</span>
       </div>
-      <span class="badge ${r.estado}">${r.estado}</span>
+      <div class="h-right">
+        ${gcalBtn}
+        <span class="badge ${r.estado}">${r.estado}</span>
+      </div>
     `);
     wrap.appendChild(row);
   });
