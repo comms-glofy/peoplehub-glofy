@@ -105,6 +105,13 @@
     font-size:12px; font-weight:600; margin-top:14px;
     text-decoration:underline; text-underline-offset:3px;
   }
+  .login-divider{
+    display:flex; align-items:center; gap:10px; margin:22px 0 16px;
+    font-size:10.5px; font-weight:700; color:#6f6f6f;
+    text-transform:uppercase; letter-spacing:.05em;
+  }
+  .login-divider::before, .login-divider::after{content:''; flex:1; height:1px; background:#3f3f3f;}
+  .google-signin-wrap{display:flex; justify-content:center; min-height:40px;}
   .btn-link:hover{color:var(--lime);}
 
   /* ---------- app shell ---------- */
@@ -326,6 +333,7 @@
     .topbar-left .title{display:none;}
   }
 </style>
+<script src="https://accounts.google.com/gsi/client"></script>
 </head>
 <body>
 
@@ -350,6 +358,9 @@
       <button type="submit" class="btn" id="login-btn">Ingresar</button>
     </form>
     <button type="button" class="btn-link" id="forgot-password-btn">¿Olvidaste tu contraseña?</button>
+
+    <div class="login-divider">o</div>
+    <div id="google-signin-btn" class="google-signin-wrap"></div>
   </div>
 </section>
 
@@ -492,6 +503,13 @@
 ====================================================================== */
 const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx0bK9ecpn7SOD2WXE6Df1loRPYdyllCh0ucPwoVnjUdGwlh1U8v4HSxJZ8qXH2yBu8Vw/exec"; // ej: "https://script.google.com/macros/s/XXXX/exec"
 
+// Login con Google — mismo Client ID que pegaste en Code.gs (GOOGLE_CLIENT_ID).
+// Esto NO es un secreto, es normal que el Client ID esté visible en el
+// front — Google lo diseñó así. Mientras diga "PEGAR_AQUI...", el botón
+// de Google directamente no aparece (no rompe nada, el login con
+// contraseña sigue andando igual).
+const GOOGLE_CLIENT_ID = "PEGAR_AQUI_TU_GOOGLE_CLIENT_ID.apps.googleusercontent.com";
+
 /* ======================================================================
    TIPOS DE LICENCIA — según Manual de Licencias y Permisos Glofy
 ====================================================================== */
@@ -542,44 +560,10 @@ async function apiCall(action, payload){
 }
 
 /* ======================================================================
-   Reglas de negocio — cálculo de balances
+   Reglas de negocio — el cálculo de balances vive solo en el backend
+   (Code.gs), no acá. daysBetween se usa al armar una solicitud nueva.
 ====================================================================== */
 function daysBetween(a,b){ return Math.round((b-a)/86400000); }
-
-function computeVacationEntitlement(fechaIngresoStr, year){
-  const ingreso = new Date(fechaIngresoStr+"T00:00:00");
-  const dec31 = new Date(year,11,31);
-  const monthsAntiguedad = (dec31.getFullYear()-ingreso.getFullYear())*12 + (dec31.getMonth()-ingreso.getMonth()) - (dec31.getDate()<ingreso.getDate()?1:0);
-  if (monthsAntiguedad >= 6){
-    return { dias:14, criterio:"14 días corridos (6+ meses de antigüedad)" };
-  }
-  const today = new Date();
-  const hasta = today < dec31 ? today : dec31;
-  const worked = Math.max(0, daysBetween(ingreso, hasta));
-  const dias = Math.floor(worked/20);
-  return { dias, criterio:"1 día cada 20 trabajados (menos de 6 meses de antigüedad)" };
-}
-
-function computeBalances(emp, myReqs){
-  const year = new Date().getFullYear();
-  const approved = myReqs.filter(r=>r.estado==="Aprobado");
-
-  const vac = computeVacationEntitlement(emp.fechaIngreso, year);
-  const vacUsados = approved.filter(r=>r.tipo==="vacaciones" && r.fecha_inicio.startsWith(String(year))).reduce((s,r)=>s+Number(r.dias),0);
-
-  const saludUsados = approved.filter(r=>r.tipo==="salud" && r.fecha_inicio.startsWith(String(year))).reduce((s,r)=>s+Number(r.dias),0);
-
-  const cumpleUsado = approved.some(r=>r.tipo==="cumpleanos" && r.fecha_inicio.startsWith(String(year)));
-
-  const guardiaComp = approved.filter(r=>r.tipo==="guardia" && r.fecha_inicio.startsWith(String(year))).reduce((s,r)=>s+Number(r.dias),0);
-
-  return {
-    vacaciones: { total: vac.dias, usados: vacUsados, disponibles: Math.max(0,vac.dias-vacUsados), criterio: vac.criterio },
-    salud: { usados: saludUsados },
-    cumpleanos: { usado: cumpleUsado },
-    guardia: { diasCompensados: guardiaComp },
-  };
-}
 
 /* ======================================================================
    UI helpers
@@ -640,6 +624,40 @@ function fmtDate(str){
   if(!str) return "";
   const d = new Date(str+"T00:00:00");
   return d.toLocaleDateString("es-AR",{ day:"2-digit", month:"short", year:"numeric" });
+}
+
+/* ======================================================================
+   LOGIN CON GOOGLE — convive con el de mail+contraseña, no lo reemplaza.
+====================================================================== */
+function initGoogleSignIn(){
+  if (!window.google || !GOOGLE_CLIENT_ID || GOOGLE_CLIENT_ID.startsWith("PEGAR_AQUI")){
+    return; // sin Client ID configurado, el botón de Google simplemente no aparece
+  }
+  google.accounts.id.initialize({
+    client_id: GOOGLE_CLIENT_ID,
+    callback: handleGoogleCredentialResponse,
+  });
+  google.accounts.id.renderButton(document.getElementById("google-signin-btn"), {
+    theme: "filled_black",
+    size: "large",
+    shape: "pill",
+    text: "signin_with",
+    width: 300,
+  });
+}
+
+async function handleGoogleCredentialResponse(response){
+  const errBox = $("#login-error");
+  errBox.classList.remove("show");
+  try{
+    const res = await apiCall("loginWithGoogle", { idToken: response.credential });
+    session = res.employee;
+    saveSession();
+    await enterApp();
+  }catch(err){
+    errBox.textContent = err.message || "No pudimos validar tu cuenta de Google.";
+    errBox.classList.add("show");
+  }
 }
 
 /* ======================================================================
@@ -740,6 +758,11 @@ $("#logout-btn").addEventListener("click", ()=>{
   }
 })();
 
+// El script de Google (accounts.google.com/gsi/client) va sin async/defer
+// en el <head>, así que para cuando este bloque corre ya está cargado y
+// window.google existe — no hace falta esperar ningún evento de carga.
+initGoogleSignIn();
+
 /* ======================================================================
    APP — dashboard
 ====================================================================== */
@@ -825,8 +848,8 @@ function renderHistory(history){
   }
   history.forEach(r=>{
     const type = LEAVE_BY_ID[r.tipo];
-    const gcalBtn = r.estado === "Aprobado"
-      ? `<a class="h-gcal-btn" href="${buildGcalUrl(r)}" target="_blank" rel="noopener">+ Google Calendar</a>`
+    const gcalBtns = r.estado === "Aprobado"
+      ? `<a class="h-gcal-btn" href="${buildGcalUrl(r)}" target="_blank" rel="noopener">Agregar Evento en Google Calendar</a>`
       : "";
     const row = el("div","history-row",`
       <div class="h-main">
@@ -834,7 +857,7 @@ function renderHistory(history){
         <span class="h-dates">${fmtDate(r.fecha_inicio)}${r.fecha_fin && r.fecha_fin!==r.fecha_inicio ? " → "+fmtDate(r.fecha_fin) : ""} · ${r.dias} día(s)</span>
       </div>
       <div class="h-right">
-        ${gcalBtn}
+        ${gcalBtns}
         <span class="badge ${r.estado}">${r.estado}</span>
       </div>
     `);
