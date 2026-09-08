@@ -105,13 +105,6 @@
     font-size:12px; font-weight:600; margin-top:14px;
     text-decoration:underline; text-underline-offset:3px;
   }
-  .login-divider{
-    display:flex; align-items:center; gap:10px; margin:22px 0 16px;
-    font-size:10.5px; font-weight:700; color:#6f6f6f;
-    text-transform:uppercase; letter-spacing:.05em;
-  }
-  .login-divider::before, .login-divider::after{content:''; flex:1; height:1px; background:#3f3f3f;}
-  .google-signin-wrap{display:flex; justify-content:center; min-height:40px;}
   .btn-link:hover{color:var(--lime);}
 
   /* ---------- app shell ---------- */
@@ -333,7 +326,6 @@
     .topbar-left .title{display:none;}
   }
 </style>
-<script src="https://accounts.google.com/gsi/client"></script>
 </head>
 <body>
 
@@ -358,9 +350,6 @@
       <button type="submit" class="btn" id="login-btn">Ingresar</button>
     </form>
     <button type="button" class="btn-link" id="forgot-password-btn">¿Olvidaste tu contraseña?</button>
-
-    <div class="login-divider">o</div>
-    <div id="google-signin-btn" class="google-signin-wrap"></div>
   </div>
 </section>
 
@@ -503,13 +492,6 @@
 ====================================================================== */
 const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx0bK9ecpn7SOD2WXE6Df1loRPYdyllCh0ucPwoVnjUdGwlh1U8v4HSxJZ8qXH2yBu8Vw/exec"; // ej: "https://script.google.com/macros/s/XXXX/exec"
 
-// Login con Google — mismo Client ID que pegaste en Code.gs (GOOGLE_CLIENT_ID).
-// Esto NO es un secreto, es normal que el Client ID esté visible en el
-// front — Google lo diseñó así. Mientras diga "PEGAR_AQUI...", el botón
-// de Google directamente no aparece (no rompe nada, el login con
-// contraseña sigue andando igual).
-const GOOGLE_CLIENT_ID = "PEGAR_AQUI_TU_GOOGLE_CLIENT_ID.apps.googleusercontent.com";
-
 /* ======================================================================
    TIPOS DE LICENCIA — según Manual de Licencias y Permisos Glofy
 ====================================================================== */
@@ -627,40 +609,6 @@ function fmtDate(str){
 }
 
 /* ======================================================================
-   LOGIN CON GOOGLE — convive con el de mail+contraseña, no lo reemplaza.
-====================================================================== */
-function initGoogleSignIn(){
-  if (!window.google || !GOOGLE_CLIENT_ID || GOOGLE_CLIENT_ID.startsWith("PEGAR_AQUI")){
-    return; // sin Client ID configurado, el botón de Google simplemente no aparece
-  }
-  google.accounts.id.initialize({
-    client_id: GOOGLE_CLIENT_ID,
-    callback: handleGoogleCredentialResponse,
-  });
-  google.accounts.id.renderButton(document.getElementById("google-signin-btn"), {
-    theme: "filled_black",
-    size: "large",
-    shape: "pill",
-    text: "signin_with",
-    width: 300,
-  });
-}
-
-async function handleGoogleCredentialResponse(response){
-  const errBox = $("#login-error");
-  errBox.classList.remove("show");
-  try{
-    const res = await apiCall("loginWithGoogle", { idToken: response.credential });
-    session = res.employee;
-    saveSession();
-    await enterApp();
-  }catch(err){
-    errBox.textContent = err.message || "No pudimos validar tu cuenta de Google.";
-    errBox.classList.add("show");
-  }
-}
-
-/* ======================================================================
    LOGIN
 ====================================================================== */
 $("#login-form").addEventListener("submit", async (e)=>{
@@ -757,11 +705,6 @@ $("#logout-btn").addEventListener("click", ()=>{
     clearSession();
   }
 })();
-
-// El script de Google (accounts.google.com/gsi/client) va sin async/defer
-// en el <head>, así que para cuando este bloque corre ya está cargado y
-// window.google existe — no hace falta esperar ningún evento de carga.
-initGoogleSignIn();
 
 /* ======================================================================
    APP — dashboard
