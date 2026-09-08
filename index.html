@@ -801,47 +801,19 @@ function renderBalances(b){
  * le suma 1 día a la fecha de fin real, como pide la convención de
  * Google Calendar para eventos de día completo).
  */
-/**
- * Arma un link de "Agregar a Google Calendar" para una solicitud ya
- * aprobada. Es un link con parámetros — Google abre su propia pantalla de
- * creación de evento con todo precargado, la persona solo confirma y
- * guarda. No requiere ningún permiso ni backend nuevo.
- *
- * mode:"evento" arma un evento común de People Hub.
- * mode:"ooo" usa el parámetro documentado crm=BLOCKING, que le dice a
- * Google Calendar que marque el evento como "Fuera de la oficina" directo
- * al crearlo — no hace falta que la persona lo cambie a mano adentro de
- * Calendar. Esto marca el estado de disponibilidad (aparece ocupada/fuera
- * de la oficina para quien la invite a una reunión). NO activa la
- * respuesta automática de Gmail ni el rechazo automático de reuniones —
- * esas dos cosas son el tipo de evento más nuevo de Google, que solo se
- * puede crear vía su API con autorización (la integración completa que
- * hablamos aparte).
- *
- * Formato de fechas: AAAAMMDD/AAAAMMDD, con el fin exclusivo (por eso se
- * le suma 1 día a la fecha de fin real, como pide la convención de
- * Google Calendar para eventos de día completo).
- */
-function buildGcalUrl(r, mode){
+function buildGcalUrl(r){
   const type = LEAVE_BY_ID[r.tipo];
   const typeName = type ? type.name : r.tipo;
-  const title = mode === "ooo"
-    ? encodeURIComponent(`Fuera de la oficina — ${typeName}`)
-    : encodeURIComponent(`${typeName} — Glofy`);
-  const details = mode === "ooo"
-    ? encodeURIComponent(
-        `Ausencia aprobada en People Hub: ${typeName}${r.motivo ? " — " + r.motivo : ""}.`
-      )
-    : encodeURIComponent(
-        `Licencia aprobada en People Hub: ${typeName}${r.motivo ? " — " + r.motivo : ""}`
-      );
+  const title = encodeURIComponent(`${typeName} — Glofy`);
+  const details = encodeURIComponent(
+    `Licencia aprobada en People Hub: ${typeName}${r.motivo ? " — " + r.motivo : ""}`
+  );
   const start = r.fecha_inicio.replace(/-/g, "");
   const endBase = r.fecha_fin || r.fecha_inicio;
   const endDate = new Date(endBase + "T00:00:00");
   endDate.setDate(endDate.getDate() + 1); // fin exclusivo
   const end = `${endDate.getFullYear()}${String(endDate.getMonth()+1).padStart(2,"0")}${String(endDate.getDate()).padStart(2,"0")}`;
-  const crm = mode === "ooo" ? "&crm=BLOCKING" : "";
-  return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${start}/${end}&details=${details}${crm}`;
+  return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${start}/${end}&details=${details}`;
 }
 
 function renderHistory(history){
@@ -853,9 +825,8 @@ function renderHistory(history){
   }
   history.forEach(r=>{
     const type = LEAVE_BY_ID[r.tipo];
-    const gcalBtns = r.estado === "Aprobado"
-      ? `<a class="h-gcal-btn" href="${buildGcalUrl(r,"evento")}" target="_blank" rel="noopener">Agregar Evento en Google Calendar</a>
-         <a class="h-gcal-btn" href="${buildGcalUrl(r,"ooo")}" target="_blank" rel="noopener">Agregar Out of Office en Google Calendar</a>`
+    const gcalBtn = r.estado === "Aprobado"
+      ? `<a class="h-gcal-btn" href="${buildGcalUrl(r)}" target="_blank" rel="noopener">+ Google Calendar</a>`
       : "";
     const row = el("div","history-row",`
       <div class="h-main">
@@ -863,7 +834,7 @@ function renderHistory(history){
         <span class="h-dates">${fmtDate(r.fecha_inicio)}${r.fecha_fin && r.fecha_fin!==r.fecha_inicio ? " → "+fmtDate(r.fecha_fin) : ""} · ${r.dias} día(s)</span>
       </div>
       <div class="h-right">
-        ${gcalBtns}
+        ${gcalBtn}
         <span class="badge ${r.estado}">${r.estado}</span>
       </div>
     `);
