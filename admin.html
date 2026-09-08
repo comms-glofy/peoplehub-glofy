@@ -245,6 +245,16 @@
         <input type="date" name="fechaIngreso">
       </div>
       <div class="field">
+        <label>Saldo inicial de vacaciones (opcional)</label>
+        <input type="number" name="saldoInicialVacaciones" step="0.5" min="0" placeholder="Ej. 9">
+        <p class="modal-hint">Solo para gente con antigüedad real (no nueva en 2026): el saldo de vacaciones que tiene HOY según la planilla que ya manejaban. Dejalo vacío para alguien nuevo — el sistema va a calcular su saldo solo desde la fecha de ingreso.</p>
+      </div>
+      <div class="field" id="fecha-saldo-inicial-field">
+        <label>Fecha de ese saldo</label>
+        <input type="date" name="fechaSaldoInicial">
+        <p class="modal-hint">La fecha a la que corresponde el número de arriba — normalmente, hoy. Obligatoria si cargaste un saldo inicial.</p>
+      </div>
+      <div class="field">
         <label>Fecha de nacimiento</label>
         <input type="text" name="fechaNacimiento" placeholder="DD/MM, ej. 13/01">
       </div>
@@ -629,6 +639,8 @@ function openEmployeeModal(emp){
     form.fechaIngreso.value = emp.fechaIngreso || "";
     form.fechaNacimiento.value = emp.fechaNacimiento ? emp.fechaNacimiento.split("-").reverse().join("/") : "";
     form.fotoPerfil.value = emp.fotoPerfil || "";
+    form.saldoInicialVacaciones.value = (emp.saldoInicialVacaciones !== undefined && emp.saldoInicialVacaciones !== "" && emp.saldoInicialVacaciones != null) ? emp.saldoInicialVacaciones : "";
+    form.fechaSaldoInicial.value = emp.fechaSaldoInicial || "";
     form.debeCambiarPassword.checked = !!emp.debeCambiarPassword;
     $("#password-label").textContent = "Contraseña nueva (opcional)";
     $("#password-hint").textContent = "Dejalo vacío para no cambiar la contraseña actual.";
@@ -653,6 +665,17 @@ $("#employee-modal-overlay").addEventListener("click", (e)=>{ if(e.target.id==="
 $("#employee-form").addEventListener("submit", async (e)=>{
   e.preventDefault();
   const fd = new FormData(e.target);
+  const saldoInicialVacaciones = fd.get("saldoInicialVacaciones");
+  const fechaSaldoInicial = fd.get("fechaSaldoInicial");
+  const errBox = $("#employee-modal-error");
+  errBox.classList.remove("show");
+
+  if ((saldoInicialVacaciones && !fechaSaldoInicial) || (!saldoInicialVacaciones && fechaSaldoInicial)){
+    errBox.textContent = "El saldo inicial de vacaciones y su fecha van juntos — completá los dos, o dejá los dos vacíos.";
+    errBox.classList.add("show");
+    return;
+  }
+
   const payload = {
     nombre: fd.get("nombre"),
     email: fd.get("email"),
@@ -660,6 +683,8 @@ $("#employee-form").addEventListener("submit", async (e)=>{
     fechaNacimiento: fd.get("fechaNacimiento"),
     fotoPerfil: fd.get("fotoPerfil"),
     debeCambiarPassword: fd.get("debeCambiarPassword") === "on",
+    saldoInicialVacaciones: saldoInicialVacaciones,
+    fechaSaldoInicial: fechaSaldoInicial,
   };
   const password = fd.get("password");
   if (password) payload.password = password;
@@ -680,8 +705,8 @@ $("#employee-form").addEventListener("submit", async (e)=>{
     closeEmployeeModal();
     await loadEmployees();
   }catch(err){
-    $("#employee-modal-error").textContent = err.message || "No pudimos guardar los datos.";
-    $("#employee-modal-error").classList.add("show");
+    errBox.textContent = err.message || "No pudimos guardar los datos.";
+    errBox.classList.add("show");
   }finally{
     btn.disabled = false; btn.textContent = "Guardar";
   }
