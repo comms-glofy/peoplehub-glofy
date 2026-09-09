@@ -387,7 +387,7 @@
 /* ======================================================================
    CONFIG — misma URL de Apps Script que usa index.html
 ====================================================================== */
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx0bK9ecpn7SOD2WXE6Df1loRPYdyllCh0ucPwoVnjUdGwlh1U8v4HSxJZ8qXH2yBu8Vw/exec"; // ej: "https://script.google.com/macros/s/XXXX/exec"
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw15HpiVJIx1lkjRSi11zHZhGXOERdhhJMHaEQVHQ9uwEl-Zsj6VJEDAUgH6CcLEPH6uQ/exec"; // ej: "https://script.google.com/macros/s/XXXX/exec"
 
 // Misma imagen fija que usa el backend para todo feriado (HOLIDAY_PHOTO_URL en Code.gs) — el backend no la manda en la lista, así que la repetimos acá para la miniatura.
 const HOLIDAY_PHOTO_URL_FRONT = "https://raw.githubusercontent.com/comms-glofy/peoplehub-glofy/refs/heads/main/off.png";
@@ -693,8 +693,13 @@ $("#employee-form").addEventListener("submit", async (e)=>{
   btn.disabled = true; btn.textContent = "Guardando...";
   try{
     if (editingEmployeeRowNum){
-      await apiCall("adminUpdateEmployee", { rowNum: editingEmployeeRowNum, ...payload });
-      showToast("Colaborador actualizado.");
+      const res = await apiCall("adminUpdateEmployee", { rowNum: editingEmployeeRowNum, ...payload });
+      if (res.debug){
+        const d = res.debug.guardadoEnSheet;
+        showToast(`Guardado. En el Sheet quedó: saldo=${d.saldoInicialVacaciones || "(vacío)"} fecha=${d.fechaSaldoInicial || "(vacío)"}`);
+      } else {
+        showToast("Colaborador actualizado.");
+      }
     } else {
       if (!password){
         throw new Error("La contraseña es obligatoria para alguien nuevo.");
