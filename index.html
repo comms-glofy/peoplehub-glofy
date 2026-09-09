@@ -740,7 +740,7 @@ function renderBalances(b){
   `));
 
   wrap.appendChild(el("div","balance-card",`
-    <div class="label">Días de salud usados (${new Date().getFullYear()})</div>
+    <div class="label">Días de salud usados</div>
     <div class="value">${b.salud.usados}<span class="unit">días</span></div>
     <div class="foot">Se registran al aprobarse la licencia</div>
   `));
@@ -752,7 +752,7 @@ function renderBalances(b){
   `));
 
   wrap.appendChild(el("div","balance-card",`
-    <div class="label">Guardias compensadas (${new Date().getFullYear()})</div>
+    <div class="label">Guardias compensadas</div>
     <div class="value">${b.guardia.diasCompensados}<span class="unit">días off</span></div>
     <div class="foot">Relación 2:1 sobre guardias pasivas</div>
   `));
