@@ -526,16 +526,36 @@ function clearSession(){
 /* ======================================================================
    API layer — habla siempre con el Apps Script Web App real
 ====================================================================== */
-async function apiCall(action, payload){
+/**
+ * Reintenta solo automático ante fallas transitorias del servidor (Apps
+ * Script a veces tiene hiccups momentáneos, sobre todo con varias
+ * personas usando el Sheet al mismo tiempo) — la persona ni se entera.
+ * NO reintenta errores de negocio reales (ok:false con un mensaje
+ * concreto, como "Mail o contraseña incorrectos") — esos se muestran
+ * directo, reintentar no cambiaría el resultado.
+ */
+async function apiCall(action, payload, attempt = 1){
   if (!APPS_SCRIPT_URL){
     throw new Error("Falta configurar APPS_SCRIPT_URL en index.html — ver README-setup.md.");
   }
-  const res = await fetch(APPS_SCRIPT_URL, {
-    method:"POST",
-    headers:{ "Content-Type":"text/plain;charset=utf-8" }, // evita preflight CORS en Apps Script
-    body: JSON.stringify({ action, ...payload })
-  });
-  if (!res.ok) throw new Error("Error de red");
+  const maxAttempts = 3;
+  let res;
+  try{
+    res = await fetch(APPS_SCRIPT_URL, {
+      method:"POST",
+      headers:{ "Content-Type":"text/plain;charset=utf-8" }, // evita preflight CORS en Apps Script
+      body: JSON.stringify({ action, ...payload })
+    });
+  }catch(networkErr){
+    if (attempt >= maxAttempts) throw new Error("No pudimos conectar con el servidor. Probá de nuevo en unos segundos.");
+    await new Promise(r => setTimeout(r, 700 * attempt));
+    return apiCall(action, payload, attempt + 1);
+  }
+  if (!res.ok){
+    if (attempt >= maxAttempts) throw new Error("El servidor respondió con un error. Probá de nuevo en unos segundos.");
+    await new Promise(r => setTimeout(r, 700 * attempt));
+    return apiCall(action, payload, attempt + 1);
+  }
   const data = await res.json();
   if (!data.ok) throw new Error(data.error || "Error");
   return data;
