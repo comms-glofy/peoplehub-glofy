@@ -619,7 +619,7 @@ function photoFallback(imgEl, letter){
 function squarePhotoHTML(name, fotoUrl){
   const letter = (name || "?").trim().charAt(0).toUpperCase();
   if (!fotoUrl) return `<div class="p-photo-fallback">${letter}</div>`;
-  return `<img src="${fotoUrl}" alt="${name}" onerror="photoFallback(this,'${letter}')">`;
+  return `<img src="${fotoUrl}" alt="${name}" loading="lazy" onerror="photoFallback(this,'${letter}')">`;
 }
 
 function fmtDate(str){
@@ -737,8 +737,10 @@ async function enterApp(){
   $("#user-avatar").innerHTML = avatarHTML(session.nombre, session.fotoPerfil);
 
   renderRequestTypes();
-  await refreshDashboard();
-  renderMonthView();
+  // El balance y el Calendario son independientes entre sí — pedirlos en
+  // paralelo (en vez de esperar uno para recién arrancar el otro) corta
+  // la espera inicial a la mitad, aproximadamente.
+  await Promise.all([refreshDashboard(), renderMonthView()]);
 }
 
 async function refreshDashboard(){
