@@ -953,7 +953,11 @@ async function renderMonthView(){
   $("#month-label").textContent = MONTH_NAMES[viewMonth];
   const wrap = $("#people-grid");
 
-  const { employees, events, feriados } = await apiCall("getCalendarioMes", { month: viewMonth+1 });
+  const [{ employees }, { events }, { feriados }] = await Promise.all([
+    apiCall("getBirthdays", { month: viewMonth+1 }),
+    apiCall("getEvents", { month: viewMonth+1 }),
+    apiCall("getFeriados", { month: viewMonth+1 }),
+  ]);
 
   const items = [];
   employees.forEach(emp=>{
