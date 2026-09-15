@@ -737,10 +737,32 @@ async function enterApp(){
   $("#user-avatar").innerHTML = avatarHTML(session.nombre, session.fotoPerfil);
 
   renderRequestTypes();
+  showLoadingPlaceholders();
   // El balance y el Calendario son independientes entre sí — pedirlos en
   // paralelo (en vez de esperar uno para recién arrancar el otro) corta
   // la espera inicial a la mitad, aproximadamente.
   await Promise.all([refreshDashboard(), renderMonthView()]);
+}
+
+/**
+ * Mientras se espera la primera respuesta del servidor, estas tres
+ * secciones quedarían vacías (se pueden confundir con "está roto"). Un
+ * cartel simple de "Cargando..." alcanza — reutiliza el mismo estilo de
+ * .empty-state que ya existe para "no hay nada todavía", sin agregar CSS
+ * ni animaciones nuevas. Cada sección lo reemplaza sola apenas llega su
+ * propia respuesta (renderBalances/renderHistory/renderMonthView ya
+ * vacían el contenedor antes de dibujar el contenido real).
+ */
+function showLoadingPlaceholders(){
+  const cardsWrap = $("#balance-cards");
+  cardsWrap.innerHTML = "";
+  for (let i = 0; i < 4; i++){
+    cardsWrap.appendChild(el("div","balance-card","<div class=\"label\">Cargando…</div>"));
+  }
+  $("#people-grid").innerHTML = "";
+  $("#people-grid").appendChild(el("div","empty-state","Cargando…"));
+  $("#history-list").innerHTML = "";
+  $("#history-list").appendChild(el("div","empty-state","Cargando…"));
 }
 
 async function refreshDashboard(){
