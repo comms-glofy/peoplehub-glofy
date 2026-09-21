@@ -4,9 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>People Hub</title>
-<meta name="description" content="Gestioná tus ausencias y tus beneficios.">
+<meta name="description" content="Gestioná tus ausencias, tu calendario de equipo y tus beneficios, todo en un solo lugar.">
 <meta property="og:title" content="People Hub">
-<meta property="og:description" content="Gestioná tus ausencias y tus beneficios.">
+<meta property="og:description" content="Gestioná tus ausencias, tu calendario de equipo y tus beneficios, todo en un solo lugar.">
 <link rel="icon" href="https://raw.githubusercontent.com/comms-glofy/glofy-assets/refs/heads/main/favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -630,7 +630,7 @@ $("#forgot-password-btn").addEventListener("click", async ()=>{
   const email = $("#login-email").value.trim();
   if (!email){
     const errBox = $("#login-error");
-    errBox.textContent = "Escribí primero tu mail corporativo, así avisamos a People.";
+    errBox.textContent = "Comunicate con People por Slack o enviá un mail a people@glofy.co solicitando una nueva contraseña.";
     errBox.classList.add("show");
     return;
   }
