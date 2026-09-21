@@ -3,10 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="description" content="Gestioná tus ausencias y beneficios.">
-<meta property="og:title" content="People Hub">
-<meta property="og:description" content="Gestioná tus ausencias y beneficios.">
 <title>People Hub</title>
+<meta name="description" content="Gestioná tus ausencias y tus beneficios.">
+<meta property="og:title" content="People Hub">
+<meta property="og:description" content="Gestioná tus ausencias y tus beneficios.">
 <link rel="icon" href="https://raw.githubusercontent.com/comms-glofy/glofy-assets/refs/heads/main/favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -353,29 +353,6 @@
   </div>
 </section>
 
-<!-- =============== CAMBIO DE CONTRASEÑA (obligatorio en primer ingreso) =============== -->
-<section id="change-password-screen" class="screen">
-  <div class="login-card">
-    <div class="login-logo">
-      <img src="https://raw.githubusercontent.com/comms-glofy/glofy-assets/refs/heads/main/logo-rebrand-glofy.png" alt="Glofy">
-    </div>
-    <h1>Elegí tu contraseña</h1>
-    <p class="sub">Es tu primer ingreso — necesitamos que reemplaces la contraseña temporal por una tuya.</p>
-    <div id="change-password-error" class="error-msg"></div>
-    <form id="change-password-form">
-      <div class="field">
-        <label for="new-password">Contraseña nueva</label>
-        <input type="password" id="new-password" placeholder="Mínimo 6 caracteres" minlength="6" required autocomplete="new-password">
-      </div>
-      <div class="field">
-        <label for="new-password-confirm">Repetila</label>
-        <input type="password" id="new-password-confirm" placeholder="Mínimo 6 caracteres" minlength="6" required autocomplete="new-password">
-      </div>
-      <button type="submit" class="btn" id="change-password-btn">Guardar y continuar</button>
-    </form>
-  </div>
-</section>
-
 <!-- =============== APP =============== -->
 <section id="app-screen" class="screen">
   <header class="topbar">
@@ -639,13 +616,8 @@ $("#login-form").addEventListener("submit", async (e)=>{
     const res = await apiCall("login", { email, password });
     const { password: _drop, ...safeEmp } = res.employee;
     session = safeEmp;
-    if (res.debeCambiarPassword){
-      $("#login-screen").classList.remove("active");
-      $("#change-password-screen").classList.add("active");
-    } else {
-      saveSession();
-      await enterApp();
-    }
+    saveSession();
+    await enterApp();
   }catch(err){
     errBox.textContent = err.message || "No pudimos validar tus datos.";
     errBox.classList.add("show");
@@ -667,33 +639,6 @@ $("#forgot-password-btn").addEventListener("click", async ()=>{
     showToast("Le avisamos a People — te va a llegar una contraseña nueva por su cuenta.");
   }catch(err){
     showToast(err.message || "No pudimos enviar el aviso.");
-  }
-});
-
-$("#change-password-form").addEventListener("submit", async (e)=>{
-  e.preventDefault();
-  const btn = $("#change-password-btn");
-  const errBox = $("#change-password-error");
-  errBox.classList.remove("show");
-  const newPassword = $("#new-password").value;
-  const confirm = $("#new-password-confirm").value;
-  if (newPassword !== confirm){
-    errBox.textContent = "Las dos contraseñas no coinciden.";
-    errBox.classList.add("show");
-    return;
-  }
-  btn.disabled = true; btn.textContent = "Guardando...";
-  try{
-    await apiCall("changePassword", { email: session.email, newPassword });
-    $("#change-password-screen").classList.remove("active");
-    $("#change-password-form").reset();
-    saveSession();
-    await enterApp();
-  }catch(err){
-    errBox.textContent = err.message || "No pudimos guardar la contraseña.";
-    errBox.classList.add("show");
-  }finally{
-    btn.disabled = false; btn.textContent = "Guardar y continuar";
   }
 });
 
