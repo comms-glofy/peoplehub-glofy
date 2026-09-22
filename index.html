@@ -175,6 +175,8 @@
     transition:border-color .15s, transform .08s;
   }
   .type-btn:hover{border-color:var(--lime); transform:translateY(-1px);}
+  .type-btn:disabled{opacity:.45; cursor:not-allowed;}
+  .type-btn:disabled:hover{border-color:#454545; transform:none;}
   .type-btn .t-name{font-size:13px; font-weight:700; display:block; margin-bottom:3px; color:var(--offwhite);}
   .type-btn .t-desc{font-size:11.5px; color:#999; line-height:1.4;}
 
@@ -381,6 +383,7 @@
     <div class="section">
       <div class="section-head">
         <h3>Solicitar</h3>
+        <a class="benefit-btn-link" href="https://docs.glofy.co/licencias-y-permisos" target="_blank" rel="noopener">Ver manual de licencias y permisos</a>
       </div>
       <div class="request-types" id="request-types"></div>
     </div>
@@ -469,18 +472,30 @@ const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxqoIxlfDwSkJXI
    TIPOS DE LICENCIA — según Manual de Licencias y Permisos Glofy
 ====================================================================== */
 const LEAVE_TYPES = [
-  { id:"permiso_corto", name:"Permiso corto / ausencia programada", desc:"Ausencia breve previamente acordada.", advance:"48 hs", fields:["fecha_inicio","hora","motivo"] },
   { id:"vacaciones", name:"Vacaciones", desc:"Mínimo 1 semana, con al menos 2 meses de anticipación.", advance:"2 meses", fields:["fecha_inicio","fecha_fin","motivo_opcional"] },
-  { id:"cumpleanos", name:"Medio día off por cumpleaños", desc:"Medio día libre para festejar, dentro del mes de tu cumpleaños.", advance:"48 hs", fields:["fecha_inicio","hora"] },
   { id:"salud", name:"Licencia o inconveniente de salud", desc:"Recordá enviar el certificado médico a people@glofy.co en cuanto puedas.", advance:"Lo antes posible", fields:["fecha_inicio","fecha_fin","motivo"] },
-  { id:"permiso_especial", name:"Permiso especial", desc:"Entradas/salidas anticipadas o ausencias parciales por motivos personales.", advance:"48 hs", fields:["fecha_inicio","hora","motivo"] },
+  { id:"cumpleanos", name:"Medio día off por cumpleaños", desc:"Medio día libre para festejar, dentro del mes de tu cumpleaños.", advance:"48 hs", fields:["fecha_inicio","hora"] },
+  { id:"permiso_especial", name:"Permisos especiales o ausencias programadas", desc:"Entradas/salidas anticipadas, ausencias parciales, o cualquier otra ausencia breve previamente acordada.", advance:"48 hs", fields:["fecha_inicio","hora","motivo"] },
+  { id:"licencia_especial", name:"Licencias especiales", desc:"Matrimonio, paternidad, fallecimiento de familiar directo, mudanza u otras situaciones familiares excepcionales.", advance:"Lo antes posible", fields:["fecha_inicio","fecha_fin","motivo"] },
   { id:"guardia", name:"Compensación por guardia", desc:"1 día off por cada 2 jornadas de guardia pasiva realizadas (2:1).", advance:"48 hs", fields:["fecha_inicio","motivo_opcional"] },
-  { id:"nacimiento_familiar", name:"Nacimiento o situación familiar", desc:"Maternidad, adopción, paternidad, fallecimiento u otra situación familiar excepcional.", advance:"Lo antes posible", fields:["fecha_inicio","fecha_fin","motivo"] },
-  { id:"otras_especiales", name:"Otra licencia especial", desc:"Matrimonio, mudanza o trámites personales.", advance:"15 días", fields:["fecha_inicio","fecha_fin","motivo"] },
 ];
 const LEAVE_BY_ID = Object.fromEntries(LEAVE_TYPES.map(t=>[t.id,t]));
 
+// Nombres de tipos que ya no se pueden solicitar de nuevo (se fusionaron en
+// los de arriba) pero pueden seguir existiendo en el historial de alguien
+// que los cargó antes de este cambio — así "Mis solicitudes" sigue
+// mostrando un nombre legible en vez del id crudo.
+const LEGACY_LEAVE_NAMES = {
+  permiso_corto: "Permisos especiales o ausencias programadas",
+  nacimiento_familiar: "Licencias especiales",
+  otras_especiales: "Licencias especiales",
+};
+function leaveTypeName(tipo){
+  return (LEAVE_BY_ID[tipo] && LEAVE_BY_ID[tipo].name) || LEGACY_LEAVE_NAMES[tipo] || tipo;
+}
+
 let session = null; // { nombre, email, fechaIngreso, fechaNacimiento, fotoPerfil }
+let lastBalances = null; // último balance recibido del backend — se usa para no dejar pedir de más antes de mandar el request al servidor (que igual vuelve a validarlo del lado seguro)
 const SESSION_KEY = "peoplehub_session"; // localStorage: no persiste contraseñas, solo estos datos no sensibles
 
 function saveSession(){
@@ -630,7 +645,7 @@ $("#forgot-password-btn").addEventListener("click", async ()=>{
   const email = $("#login-email").value.trim();
   if (!email){
     const errBox = $("#login-error");
-    errBox.textContent = "Comunicate con People por Slack o enviá un mail a people@glofy.co solicitando una nueva contraseña.";
+    errBox.textContent = "Comunicate con RRHH por Slack o enviá un mail a people@glofy.co solicitando una nueva contraseña.";
     errBox.classList.add("show");
     return;
   }
@@ -710,6 +725,7 @@ async function refreshDashboard(){
   const { balances, history } = await apiCall("getDashboard", { email: session.email });
   renderBalances(balances);
   renderHistory(history);
+  updateRequestTypesAvailability(balances);
 }
 
 function renderBalances(b){
@@ -753,8 +769,7 @@ function renderBalances(b){
  * Google Calendar para eventos de día completo).
  */
 function buildGcalUrl(r){
-  const type = LEAVE_BY_ID[r.tipo];
-  const typeName = type ? type.name : r.tipo;
+  const typeName = leaveTypeName(r.tipo);
   const title = encodeURIComponent(`${typeName} — Glofy`);
   const details = encodeURIComponent(
     `Licencia aprobada en People Hub: ${typeName}${r.motivo ? " — " + r.motivo : ""}`
@@ -775,13 +790,12 @@ function renderHistory(history){
     return;
   }
   history.forEach(r=>{
-    const type = LEAVE_BY_ID[r.tipo];
     const gcalBtns = r.estado === "Aprobado"
       ? `<a class="h-gcal-btn" href="${buildGcalUrl(r)}" target="_blank" rel="noopener">Agregar Evento en Google Calendar</a>`
       : "";
     const row = el("div","history-row",`
       <div class="h-main">
-        <span class="h-type">${type ? type.name : r.tipo}</span>
+        <span class="h-type">${leaveTypeName(r.tipo)}</span>
         <span class="h-dates">${fmtDate(r.fecha_inicio)}${r.fecha_fin && r.fecha_fin!==r.fecha_inicio ? " → "+fmtDate(r.fecha_fin) : ""} · ${r.dias} día(s)</span>
       </div>
       <div class="h-right">
@@ -804,9 +818,34 @@ function renderRequestTypes(){
       <span class="t-name">${t.name}</span>
       <span class="t-desc">${t.desc}</span>
     `);
+    btn.dataset.typeId = t.id;
     btn.addEventListener("click", ()=>openModal(t.id));
     wrap.appendChild(btn);
   });
+}
+
+/**
+ * De todos los tipos de licencia, solo vacaciones y el medio día por
+ * cumpleaños tienen un saldo real que se puede agotar (el resto — salud,
+ * guardia, permisos especiales, licencias especiales — no tiene un tope
+ * que el sistema deba hacer respetar). Esta función usa el balance recién
+ * traído del backend para: (a) deshabilitar directamente la tarjeta de
+ * cumpleaños si ya se usó este año, y (b) guardar el balance en
+ * `lastBalances` para que el submit de vacaciones lo valide antes de
+ * mandar el pedido.
+ */
+function updateRequestTypesAvailability(balances){
+  lastBalances = balances;
+  const btn = document.querySelector('.type-btn[data-type-id="cumpleanos"]');
+  if (!btn) return;
+  const original = LEAVE_BY_ID["cumpleanos"];
+  if (balances.cumpleanos.usado){
+    btn.disabled = true;
+    btn.querySelector(".t-desc").textContent = "Ya usaste tu medio día por cumpleaños este año.";
+  } else {
+    btn.disabled = false;
+    btn.querySelector(".t-desc").textContent = original.desc;
+  }
 }
 
 function fieldTemplate(type, id){
@@ -852,6 +891,20 @@ $("#request-form").addEventListener("submit", async (e)=>{
   if (typeId === "cumpleanos") dias = 0.5;
   else if (fecha_inicio && fecha_fin){
     dias = daysBetween(new Date(fecha_inicio+"T00:00:00"), new Date(fecha_fin+"T00:00:00")) + 1;
+  }
+
+  // Aviso inmediato antes de mandar el pedido — el backend vuelve a
+  // validar esto mismo del lado del servidor, así que no alcanza con
+  // editar el front para saltearlo.
+  if (typeId === "vacaciones" && lastBalances && dias > lastBalances.vacaciones.disponibles){
+    $("#modal-error").textContent = `Tenés ${lastBalances.vacaciones.disponibles} día(s) disponibles de vacaciones — no podés solicitar ${dias}.`;
+    $("#modal-error").classList.add("show");
+    return;
+  }
+  if (typeId === "cumpleanos" && lastBalances && lastBalances.cumpleanos.usado){
+    $("#modal-error").textContent = "Ya usaste tu medio día por cumpleaños este año.";
+    $("#modal-error").classList.add("show");
+    return;
   }
 
   const btn = $("#modal-submit");
