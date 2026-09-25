@@ -468,6 +468,16 @@
 ====================================================================== */
 const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxqoIxlfDwSkJXI2od5zcetnUTJcoak7G2G9_7Gyu3krJFyL1v8LjaOKmgQU3n_iTyo3w/exec"; // ej: "https://script.google.com/macros/s/XXXX/exec"
 
+// "Despierta" el Apps Script apenas se abre la página, antes de que la
+// persona siquiera escriba su mail — así, para cuando hace login y se
+// disparan los pedidos reales (balance + calendario, 4 juntos), el
+// contenedor de Apps Script ya está tibio en vez de arrancar de cero en
+// ese momento. Es una llamada GET (doGet), la más liviana posible: no
+// toca la planilla, solo hace que Google levante el script antes.
+if (APPS_SCRIPT_URL){
+  fetch(APPS_SCRIPT_URL).catch(()=>{ /* si falla, no pasa nada — es solo un intento de precalentar */ });
+}
+
 /* ======================================================================
    TIPOS DE LICENCIA — según Manual de Licencias y Permisos Glofy
 ====================================================================== */
@@ -526,7 +536,7 @@ async function apiCall(action, payload, attempt = 1){
   if (!APPS_SCRIPT_URL){
     throw new Error("Falta configurar APPS_SCRIPT_URL en index.html — ver README-setup.md.");
   }
-  const maxAttempts = 3;
+  const maxAttempts = 4; // un intento más que antes — le da más margen a un arranque en frío del Apps Script
   let res;
   try{
     res = await fetch(APPS_SCRIPT_URL, {
