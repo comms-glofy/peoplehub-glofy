@@ -544,7 +544,21 @@ async function apiCall(action, payload, attempt = 1){
     await new Promise(r => setTimeout(r, 700 * attempt));
     return apiCall(action, payload, attempt + 1);
   }
-  const data = await res.json();
+
+  // Cuando el Apps Script recién arranca (cold start) o llegan varios
+  // pedidos juntos apenas se abre la app, a veces la respuesta no es JSON
+  // válido (por ej. una página intermedia de Google) en vez de los datos.
+  // Antes esto rompía la promesa sin avisar y la sección quedaba trabada
+  // en "Cargando..." para siempre — ahora se trata igual que una falla de
+  // red: se reintenta solo.
+  let data;
+  try{
+    data = await res.json();
+  }catch(parseErr){
+    if (attempt >= maxAttempts) throw new Error("El servidor no devolvió una respuesta válida. Probá de nuevo en unos segundos.");
+    await new Promise(r => setTimeout(r, 700 * attempt));
+    return apiCall(action, payload, attempt + 1);
+  }
   if (!data.ok) throw new Error(data.error || "Error");
   return data;
 }
@@ -560,6 +574,20 @@ function daysBetween(a,b){ return Math.round((b-a)/86400000); }
 ====================================================================== */
 const $ = sel => document.querySelector(sel);
 const el = (tag, cls, html) => { const e=document.createElement(tag); if(cls) e.className=cls; if(html!==undefined) e.innerHTML=html; return e; };
+
+/**
+ * Reemplaza el contenido de un contenedor por un aviso de error con botón
+ * de reintento. Se usa cuando una sección no pudo cargar ni después de los
+ * reintentos automáticos de apiCall — así nunca queda trabada en
+ * "Cargando..." sin que la persona pueda hacer nada más que recargar toda
+ * la página.
+ */
+function showRetryState(containerEl, message, retryFn){
+  containerEl.innerHTML = "";
+  const box = el("div","empty-state", `${message}<br><button type="button" class="btn btn-outline btn-sm" style="margin-top:10px; width:auto;">Reintentar</button>`);
+  box.querySelector("button").addEventListener("click", ()=>retryFn());
+  containerEl.appendChild(box);
+}
 
 function showToast(msg){
   const t = $("#toast");
@@ -722,10 +750,17 @@ function showLoadingPlaceholders(){
 }
 
 async function refreshDashboard(){
-  const { balances, history } = await apiCall("getDashboard", { email: session.email });
-  renderBalances(balances);
-  renderHistory(history);
-  updateRequestTypesAvailability(balances);
+  try{
+    const { balances, history } = await apiCall("getDashboard", { email: session.email });
+    renderBalances(balances);
+    renderHistory(history);
+    updateRequestTypesAvailability(balances);
+  }catch(err){
+    const cardsWrap = $("#balance-cards");
+    cardsWrap.innerHTML = "";
+    showRetryState(cardsWrap, "No pudimos cargar tu balance.", refreshDashboard);
+    showRetryState($("#history-list"), "No pudimos cargar tus solicitudes.", refreshDashboard);
+  }
 }
 
 function renderBalances(b){
@@ -947,11 +982,23 @@ async function renderMonthView(){
   $("#month-label").textContent = MONTH_NAMES[viewMonth];
   const wrap = $("#people-grid");
 
-  const [{ employees }, { events }, { feriados }] = await Promise.all([
-    apiCall("getBirthdays", { month: viewMonth+1 }),
-    apiCall("getEvents", { month: viewMonth+1 }),
-    apiCall("getFeriados", { month: viewMonth+1 }),
-  ]);
+  let employees, events, feriados;
+  try{
+    // Los 3 pedidos siguen en paralelo (Promise.all) — mandarlos uno por
+    // uno era bastante más lento y ya se había probado. Lo que faltaba no
+    // era la concurrencia en sí, sino que una falla acá no se avisaba.
+    const results = await Promise.all([
+      apiCall("getBirthdays", { month: viewMonth+1 }),
+      apiCall("getEvents", { month: viewMonth+1 }),
+      apiCall("getFeriados", { month: viewMonth+1 }),
+    ]);
+    employees = results[0].employees;
+    events = results[1].events;
+    feriados = results[2].feriados;
+  }catch(err){
+    showRetryState(wrap, "No pudimos cargar el calendario.", renderMonthView);
+    return;
+  }
 
   const items = [];
   employees.forEach(emp=>{
