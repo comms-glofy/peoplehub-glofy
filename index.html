@@ -236,6 +236,16 @@
 
   /* Calendario — cumpleaños, aniversarios y eventos */
   .month-label{font-size:13px; font-weight:700; min-width:120px; text-align:center;}
+  .calendar-refresh-btn{
+    background:var(--dark2); border:1px solid #4a4a4a; border-radius:999px;
+    width:28px; height:28px; font-size:13px; line-height:1;
+    display:flex; align-items:center; justify-content:center;
+    color:var(--offwhite); transition:border-color .15s, transform .15s;
+  }
+  .calendar-refresh-btn:hover{border-color:var(--lime);}
+  .calendar-refresh-btn:disabled{opacity:.5; cursor:not-allowed;}
+  .calendar-refresh-btn.spinning{animation:calendar-spin .8s linear infinite;}
+  @keyframes calendar-spin{ from{transform:rotate(0deg);} to{transform:rotate(360deg);} }
 
   .people-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:16px;}
   .people-card{
@@ -391,7 +401,10 @@
     <div class="section">
       <div class="section-head">
         <h3>Calendario</h3>
-        <span class="month-label" id="month-label">-</span>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span class="month-label" id="month-label">-</span>
+          <button type="button" class="calendar-refresh-btn" id="calendar-refresh-btn" title="Actualizar calendario">🔄</button>
+        </div>
       </div>
       <div class="people-grid" id="people-grid"></div>
     </div>
@@ -976,6 +989,12 @@ $("#request-form").addEventListener("submit", async (e)=>{
 const viewMonth = new Date().getMonth(); // 0-11, fijo al mes de hoy
 const MONTH_NAMES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 
+// Botón manual junto al Calendario: vuelve a pedir solo esas 3 llamadas,
+// sin tener que recargar toda la página — mientras el arranque en frío del
+// Apps Script siga haciendo fallar el primer intento, esto deja resolverlo
+// con un click en vez de un F5.
+$("#calendar-refresh-btn").addEventListener("click", ()=>{ renderMonthView(); });
+
 /**
  * Devuelve el día de la semana real de un día del mes que se está mirando
  * (ej. "Viernes"), calculado sobre el año actual — no hay selector de año
@@ -991,6 +1010,8 @@ function weekdayLabel(day, month){
 async function renderMonthView(){
   $("#month-label").textContent = MONTH_NAMES[viewMonth];
   const wrap = $("#people-grid");
+  const refreshBtn = $("#calendar-refresh-btn");
+  if (refreshBtn){ refreshBtn.disabled = true; refreshBtn.classList.add("spinning"); }
 
   let employees, events, feriados;
   try{
@@ -1007,8 +1028,10 @@ async function renderMonthView(){
     feriados = results[2].feriados;
   }catch(err){
     showRetryState(wrap, "No pudimos cargar el calendario.", renderMonthView);
+    if (refreshBtn){ refreshBtn.disabled = false; refreshBtn.classList.remove("spinning"); }
     return;
   }
+  if (refreshBtn){ refreshBtn.disabled = false; refreshBtn.classList.remove("spinning"); }
 
   const items = [];
   employees.forEach(emp=>{
