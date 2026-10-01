@@ -792,6 +792,20 @@ async function refreshDashboard(){
   }
 }
 
+/**
+ * Texto de la tarjeta de "Medio día por cumpleaños": además de "ya lo
+ * usaste", ahora hay un segundo motivo por el que puede no estar
+ * disponible — ingresaste este año y tu cumpleaños ya había pasado (recién
+ * te corresponde a partir del año siguiente). computeBalances() en el
+ * backend es quien decide esto (cumpleanosElegibleEsteAnio en Code.gs),
+ * acá solo se refleja lo que ya vino calculado.
+ */
+function cumpleanosValueText(c){
+  if (!c.elegible) return `Disponible a partir de ${c.disponibleDesde}`;
+  if (c.usado) return "Ya lo usaste este año";
+  return "Disponible este año";
+}
+
 function renderBalances(b){
   const wrap = $("#balance-cards");
   wrap.innerHTML = "";
@@ -812,8 +826,8 @@ function renderBalances(b){
 
   wrap.appendChild(el("div","balance-card",`
     <div class="label">Medio día por cumpleaños</div>
-    <div class="value" style="font-size:16px;">${b.cumpleanos.usado ? "Ya lo usaste este año" : "Disponible este año"}</div>
-    <span class="status-pill ${b.cumpleanos.usado ? 'used':'available'}">${b.cumpleanos.usado ? '● Usado' : '● Disponible'}</span>
+    <div class="value" style="font-size:16px;">${cumpleanosValueText(b.cumpleanos)}</div>
+    <span class="status-pill ${b.cumpleanos.usado || !b.cumpleanos.elegible ? 'used':'available'}">${b.cumpleanos.usado || !b.cumpleanos.elegible ? '● No disponible' : '● Disponible'}</span>
   `));
 
   wrap.appendChild(el("div","balance-card",`
@@ -894,16 +908,20 @@ function renderRequestTypes(){
  * guardia, permisos especiales, licencias especiales — no tiene un tope
  * que el sistema deba hacer respetar). Esta función usa el balance recién
  * traído del backend para: (a) deshabilitar directamente la tarjeta de
- * cumpleaños si ya se usó este año, y (b) guardar el balance en
- * `lastBalances` para que el submit de vacaciones lo valide antes de
- * mandar el pedido.
+ * cumpleaños si ya se usó este año O si todavía no le corresponde (ingresó
+ * este año después de su cumpleaños), y (b) guardar el balance en
+ * `lastBalances` para que el submit de vacaciones/cumpleaños lo valide
+ * antes de mandar el pedido.
  */
 function updateRequestTypesAvailability(balances){
   lastBalances = balances;
   const btn = document.querySelector('.type-btn[data-type-id="cumpleanos"]');
   if (!btn) return;
   const original = LEAVE_BY_ID["cumpleanos"];
-  if (balances.cumpleanos.usado){
+  if (!balances.cumpleanos.elegible){
+    btn.disabled = true;
+    btn.querySelector(".t-desc").textContent = `Todavía no te corresponde este año — vas a tenerlo disponible a partir de ${balances.cumpleanos.disponibleDesde}.`;
+  } else if (balances.cumpleanos.usado){
     btn.disabled = true;
     btn.querySelector(".t-desc").textContent = "Ya usaste tu medio día por cumpleaños este año.";
   } else {
@@ -962,6 +980,11 @@ $("#request-form").addEventListener("submit", async (e)=>{
   // editar el front para saltearlo.
   if (typeId === "vacaciones" && lastBalances && dias > lastBalances.vacaciones.disponibles){
     $("#modal-error").textContent = `Tenés ${lastBalances.vacaciones.disponibles} día(s) disponibles de vacaciones — no podés solicitar ${dias}.`;
+    $("#modal-error").classList.add("show");
+    return;
+  }
+  if (typeId === "cumpleanos" && lastBalances && !lastBalances.cumpleanos.elegible){
+    $("#modal-error").textContent = `Todavía no te corresponde el medio día por cumpleaños este año — vas a tenerlo disponible a partir de ${lastBalances.cumpleanos.disponibleDesde}.`;
     $("#modal-error").classList.add("show");
     return;
   }
