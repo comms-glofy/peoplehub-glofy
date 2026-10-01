@@ -230,7 +230,7 @@
         <h2>Vacaciones — auditoría</h2>
         <button class="btn btn-outline btn-sm" id="refresh-audit-btn">Actualizar</button>
       </div>
-      <p class="modal-hint" style="margin:-10px 0 20px;">Saldo de vacaciones ya calculado para cada colaborador, igual que lo ve cada uno en su dashboard. Las filas marcadas tienen un saldo inicial cargado pese a haber ingresado en 2026 — ese combo es solo para gente con antigüedad real migrada de la planilla vieja, así que probablemente sea un error de carga (revisá "Colaboradores" y dejá esos dos campos vacíos si corresponde).</p>
+      <p class="modal-hint" style="margin:-10px 0 20px;">Saldo de vacaciones ya calculado para cada colaborador, igual que lo ve cada uno en su dashboard. Las filas marcadas ya tuvieron al menos una acreditación automática de +14 el 1° de octubre desde que se cargó su saldo — no es un error, pero el "Total" ya no es exactamente el número que se tipeó en "Colaboradores".</p>
       <div id="audit-table-wrap"></div>
     </div>
   </main>
@@ -269,7 +269,7 @@
       <div class="field">
         <label>Saldo inicial de vacaciones (opcional)</label>
         <input type="number" name="saldoInicialVacaciones" step="0.5" min="0" placeholder="Ej. 9">
-        <p class="modal-hint">Solo para gente con antigüedad real (no nueva en 2026): el saldo de vacaciones que tiene HOY según la planilla que ya manejaban. Dejalo vacío para alguien nuevo — el sistema va a calcular su saldo solo desde la fecha de ingreso.</p>
+        <p class="modal-hint">El saldo de vacaciones que People define como correcto HOY para esta persona — sirve tanto para migrar antigüedad real de la planilla vieja como para fijar/corregir el saldo de cualquiera, sin importar cuándo ingresó. Dejalo vacío si preferís que el sistema lo calcule solo desde la fecha de ingreso.</p>
       </div>
       <div class="field" id="fecha-saldo-inicial-field">
         <label>Fecha de ese saldo</label>
@@ -720,17 +720,6 @@ $("#employee-form").addEventListener("submit", async (e)=>{
     return;
   }
 
-  // Mismo resguardo que ya aplica el backend (ver validateSaldoInicialContraIngreso
-  // en Code.gs): este campo es solo para gente con antigüedad real, previa a
-  // People Hub — nunca para alguien que ingresó en 2026 en adelante. Cortarlo
-  // acá además evita el viaje de ida y vuelta al servidor para enterarse.
-  const fechaIngreso = fd.get("fechaIngreso");
-  if (saldoInicialVacaciones && fechaIngreso && fechaIngreso >= "2026-01-01"){
-    errBox.textContent = `No podés cargar un saldo inicial de vacaciones para alguien que ingresó en ${fechaIngreso.slice(0,4)} — ese campo es solo para gente con antigüedad real, previa a People Hub. Dejalo vacío: el sistema calcula su saldo solo desde la fecha de ingreso.`;
-    errBox.classList.add("show");
-    return;
-  }
-
   const payload = {
     nombre: fd.get("nombre"),
     email: fd.get("email"),
@@ -1070,18 +1059,19 @@ function renderVacationAudit(){
     return;
   }
 
-  // Alertados primero, para que salten a la vista sin tener que buscarlos.
+  // Los que ya tuvieron una acreditación automática de octubre primero,
+  // para que salten a la vista sin tener que buscarlos.
   const sorted = [...allVacationAudit].sort((a,b)=>{
-    if (a.alertaSaldoInicial !== b.alertaSaldoInicial) return a.alertaSaldoInicial ? -1 : 1;
+    if (a.yaAcreditoOctubre !== b.yaAcreditoOctubre) return a.yaAcreditoOctubre ? -1 : 1;
     return (a.nombre||"").localeCompare(b.nombre||"");
   });
 
   const rows = sorted.map(r=>`
-    <tr class="${r.alertaSaldoInicial ? "audit-alert" : ""}">
+    <tr class="${r.yaAcreditoOctubre ? "audit-alert" : ""}">
       <td>
         <div class="audit-name">${r.nombre||"—"}</div>
         <div class="audit-email">${r.email}</div>
-        ${r.alertaSaldoInicial ? `<span class="audit-alert-badge">⚠ Saldo inicial cargado, ingresó en 2026</span>` : ""}
+        ${r.yaAcreditoOctubre ? `<span class="audit-alert-badge">↑ Ya sumó +14 de un 1° de octubre</span>` : ""}
       </td>
       <td>${fmtDate(r.fechaIngreso) || "—"}</td>
       <td>${r.tieneSaldoInicial ? `${r.saldoInicialVacaciones} (desde ${fmtDate(r.fechaSaldoInicial)})` : "—"}</td>
