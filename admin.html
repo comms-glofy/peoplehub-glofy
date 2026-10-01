@@ -104,6 +104,17 @@
   .badge.Rechazado{background:rgba(255,107,94,.14); color:var(--danger);}
   .empty-state{border:1px dashed #454545; border-radius:var(--radius-sm); padding:26px; text-align:center; color:#888; font-size:13px;}
 
+  .audit-table{width:100%; border-collapse:collapse; font-size:12.5px;}
+  .audit-table th{text-align:left; color:#999; font-weight:700; font-size:11px; text-transform:uppercase; letter-spacing:.03em; padding:10px 12px; border-bottom:1px solid #3f3f3f; white-space:nowrap;}
+  .audit-table td{padding:11px 12px; border-bottom:1px solid #2e2e2e; vertical-align:top;}
+  .audit-table tr:last-child td{border-bottom:none;}
+  .audit-table tr.audit-alert{background:rgba(255,107,94,.08);}
+  .audit-name{font-weight:700; color:var(--offwhite);}
+  .audit-email{color:#888; font-size:11.5px;}
+  .audit-disponibles{font-weight:700;}
+  .audit-alert-badge{display:inline-flex; align-items:center; gap:5px; font-size:10.5px; font-weight:700; color:var(--danger); background:rgba(255,107,94,.14); padding:3px 9px; border-radius:999px; white-space:nowrap; margin-top:4px;}
+  .audit-table-scroll{overflow-x:auto; border:1px solid #3f3f3f; border-radius:var(--radius-sm);}
+
   .section-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;}
   .section-head h2{font-size:18px; font-weight:700;}
 
@@ -164,6 +175,7 @@
       <button class="tab-btn active" data-tab="solicitudes">Solicitudes</button>
       <button class="tab-btn" data-tab="colaboradores">Colaboradores</button>
       <button class="tab-btn" data-tab="calendario">Calendario</button>
+      <button class="tab-btn" data-tab="vacaciones">Vacaciones</button>
     </div>
 
     <!-- SOLICITUDES -->
@@ -210,6 +222,16 @@
         <button class="btn btn-outline btn-sm" id="add-event-btn">+ Agregar evento</button>
       </div>
       <div class="card-list" id="events-list"></div>
+    </div>
+
+    <!-- VACACIONES (auditoría) -->
+    <div class="tab-panel" id="tab-vacaciones">
+      <div class="section-head">
+        <h2>Vacaciones — auditoría</h2>
+        <button class="btn btn-outline btn-sm" id="refresh-audit-btn">Actualizar</button>
+      </div>
+      <p class="modal-hint" style="margin:-10px 0 20px;">Saldo de vacaciones ya calculado para cada colaborador, igual que lo ve cada uno en su dashboard. Las filas marcadas tienen un saldo inicial cargado pese a haber ingresado en 2026 — ese combo es solo para gente con antigüedad real migrada de la planilla vieja, así que probablemente sea un error de carga (revisá "Colaboradores" y dejá esos dos campos vacíos si corresponde).</p>
+      <div id="audit-table-wrap"></div>
     </div>
   </main>
 </section>
@@ -482,6 +504,7 @@ $("#login-form").addEventListener("submit", async (e)=>{
     await loadEmployees();
     await loadFeriados();
     await loadEvents();
+    await loadVacationAudit();
   }catch(err){
     adminPassword = null;
     errBox.textContent = err.message || "No pudimos validar la contraseña.";
@@ -517,6 +540,7 @@ $("#logout-btn").addEventListener("click", ()=>{
     await loadEmployees();
     await loadFeriados();
     await loadEvents();
+    await loadVacationAudit();
   }catch(err){
     adminPassword = null;
     try{ localStorage.removeItem(ADMIN_SESSION_KEY); }catch(e2){ /* no-op */ }
@@ -1005,6 +1029,77 @@ $("#holiday-form").addEventListener("submit", async (e)=>{
     btn.disabled = false; btn.textContent = "Guardar";
   }
 });
+
+/* ======================================================================
+   VACACIONES — auditoría
+   Lista a todos los colaboradores con su saldo de vacaciones ya
+   calculado (mismo criterio que ve cada uno en su dashboard) y marca a
+   cualquiera que tenga un saldo inicial cargado pese a haber ingresado
+   en 2026 — ese combo es solo para gente con antigüedad real migrada de
+   la planilla vieja, nunca para alguien nuevo, así que es casi siempre
+   un error de carga (el mismo patrón que encontramos en Diego).
+====================================================================== */
+let allVacationAudit = [];
+
+async function loadVacationAudit(){
+  try{
+    const { auditoria } = await apiCall("adminListVacationAudit", {});
+    allVacationAudit = auditoria;
+    renderVacationAudit();
+  }catch(err){
+    showToast(err.message || "No pudimos cargar la auditoría de vacaciones.");
+  }
+}
+
+function renderVacationAudit(){
+  const wrap = $("#audit-table-wrap");
+  wrap.innerHTML = "";
+  if (!allVacationAudit.length){
+    wrap.appendChild(el("div","empty-state","Todavía no hay colaboradores cargados."));
+    return;
+  }
+
+  // Alertados primero, para que salten a la vista sin tener que buscarlos.
+  const sorted = [...allVacationAudit].sort((a,b)=>{
+    if (a.alertaSaldoInicial !== b.alertaSaldoInicial) return a.alertaSaldoInicial ? -1 : 1;
+    return (a.nombre||"").localeCompare(b.nombre||"");
+  });
+
+  const rows = sorted.map(r=>`
+    <tr class="${r.alertaSaldoInicial ? "audit-alert" : ""}">
+      <td>
+        <div class="audit-name">${r.nombre||"—"}</div>
+        <div class="audit-email">${r.email}</div>
+        ${r.alertaSaldoInicial ? `<span class="audit-alert-badge">⚠ Saldo inicial cargado, ingresó en 2026</span>` : ""}
+      </td>
+      <td>${fmtDate(r.fechaIngreso) || "—"}</td>
+      <td>${r.tieneSaldoInicial ? `${r.saldoInicialVacaciones} (desde ${fmtDate(r.fechaSaldoInicial)})` : "—"}</td>
+      <td>${r.total}</td>
+      <td>${r.usados}</td>
+      <td class="audit-disponibles">${r.disponibles}</td>
+      <td class="audit-email">${r.criterio||""}</td>
+    </tr>
+  `).join("");
+
+  wrap.appendChild(el("div","audit-table-scroll",`
+    <table class="audit-table">
+      <thead>
+        <tr>
+          <th>Colaborador</th>
+          <th>Ingreso</th>
+          <th>Saldo inicial</th>
+          <th>Total</th>
+          <th>Usados</th>
+          <th>Disponibles</th>
+          <th>Criterio</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `));
+}
+
+$("#refresh-audit-btn").addEventListener("click", loadVacationAudit);
 </script>
 </body>
 </html>
