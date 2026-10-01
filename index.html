@@ -801,7 +801,7 @@ async function refreshDashboard(){
  * acá solo se refleja lo que ya vino calculado.
  */
 function cumpleanosValueText(c){
-  if (!c.elegible) return `Disponible a partir de ${c.disponibleDesde}`;
+  if (!c.elegible) return "Disponible a partir del año que viene";
   if (c.usado) return "Ya lo usaste este año";
   return "Disponible este año";
 }
@@ -920,7 +920,7 @@ function updateRequestTypesAvailability(balances){
   const original = LEAVE_BY_ID["cumpleanos"];
   if (!balances.cumpleanos.elegible){
     btn.disabled = true;
-    btn.querySelector(".t-desc").textContent = `Todavía no te corresponde este año — vas a tenerlo disponible a partir de ${balances.cumpleanos.disponibleDesde}.`;
+    btn.querySelector(".t-desc").textContent = "Todavía no te corresponde este año — vas a tenerlo disponible a partir del año que viene.";
   } else if (balances.cumpleanos.usado){
     btn.disabled = true;
     btn.querySelector(".t-desc").textContent = "Ya usaste tu medio día por cumpleaños este año.";
@@ -984,7 +984,7 @@ $("#request-form").addEventListener("submit", async (e)=>{
     return;
   }
   if (typeId === "cumpleanos" && lastBalances && !lastBalances.cumpleanos.elegible){
-    $("#modal-error").textContent = `Todavía no te corresponde el medio día por cumpleaños este año — vas a tenerlo disponible a partir de ${lastBalances.cumpleanos.disponibleDesde}.`;
+    $("#modal-error").textContent = "Todavía no te corresponde el medio día por cumpleaños este año — vas a tenerlo disponible a partir del año que viene.";
     $("#modal-error").classList.add("show");
     return;
   }
