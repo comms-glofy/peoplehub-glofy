@@ -720,6 +720,17 @@ $("#employee-form").addEventListener("submit", async (e)=>{
     return;
   }
 
+  // Mismo resguardo que ya aplica el backend (ver validateSaldoInicialContraIngreso
+  // en Code.gs): este campo es solo para gente con antigüedad real, previa a
+  // People Hub — nunca para alguien que ingresó en 2026 en adelante. Cortarlo
+  // acá además evita el viaje de ida y vuelta al servidor para enterarse.
+  const fechaIngreso = fd.get("fechaIngreso");
+  if (saldoInicialVacaciones && fechaIngreso && fechaIngreso >= "2026-01-01"){
+    errBox.textContent = `No podés cargar un saldo inicial de vacaciones para alguien que ingresó en ${fechaIngreso.slice(0,4)} — ese campo es solo para gente con antigüedad real, previa a People Hub. Dejalo vacío: el sistema calcula su saldo solo desde la fecha de ingreso.`;
+    errBox.classList.add("show");
+    return;
+  }
+
   const payload = {
     nombre: fd.get("nombre"),
     email: fd.get("email"),
