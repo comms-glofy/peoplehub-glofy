@@ -585,6 +585,16 @@ function renderRequests(){
       </div>
     `);
     const actions = card.querySelector(".req-actions");
+    if (r.tipo === "salud" && r.estado !== "Rechazado"){
+      const certBtn = el("button","btn btn-outline btn-sm", r.recordatorioCertificado ? "Reenviar recordatorio de certificado" : "Recordar certificado");
+      certBtn.title = "Le manda un mail a la persona pidiéndole que envíe el certificado médico a people@glofy.co";
+      certBtn.addEventListener("click", ()=>sendCertificateReminder(r, certBtn));
+      actions.prepend(certBtn);
+      if (r.recordatorioCertificado){
+        const sent = el("span","req-motivo", `Recordatorio de certificado enviado el ${r.recordatorioCertificado}`);
+        card.querySelector(".req-main").appendChild(sent);
+      }
+    }
     if (r.estado !== "Aprobado"){
       const approveBtn = el("button","btn btn-ok btn-sm","Aprobar");
       approveBtn.addEventListener("click", ()=>updateStatus(r.rowNum, "Aprobado"));
@@ -599,10 +609,29 @@ function renderRequests(){
   });
 }
 
+async function sendCertificateReminder(r, btn){
+  const previo = r.recordatorioCertificado ? `\n\nYa se le había enviado un recordatorio el ${r.recordatorioCertificado}.` : "";
+  if (!confirm(`¿Enviarle a ${r.nombre} un mail recordándole que envíe el certificado médico a people@glofy.co?${previo}`)) return;
+  const label = btn.textContent;
+  btn.disabled = true; btn.textContent = "Enviando...";
+  try{
+    await apiCall("adminSendCertificateReminder", { rowNum: r.rowNum });
+    showToast(`Recordatorio enviado a ${r.nombre}.`);
+    await loadRequests();
+  }catch(err){
+    showToast(err.message || "No pudimos enviar el recordatorio.");
+    btn.disabled = false; btn.textContent = label;
+  }
+}
+
 async function updateStatus(rowNum, estado){
   try{
     await apiCall("adminUpdateRequestStatus", { rowNum, estado });
-    showToast(estado === "Aprobado" ? "Solicitud aprobada — le avisamos por mail." : "Solicitud rechazada — le avisamos por mail.");
+    const aprobada = allRequests.find(x=>x.rowNum===rowNum);
+    const esSalud = aprobada && aprobada.tipo === "salud";
+    showToast(estado === "Aprobado"
+      ? (esSalud ? "Solicitud aprobada — le avisamos por mail. Si falta el certificado, usá \"Recordar certificado\"." : "Solicitud aprobada — le avisamos por mail.")
+      : "Solicitud rechazada — le avisamos por mail.");
     await loadRequests();
   }catch(err){
     showToast(err.message || "No pudimos actualizar la solicitud.");
