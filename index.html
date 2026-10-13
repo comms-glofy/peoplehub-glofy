@@ -734,8 +734,9 @@ $("#logout-btn").addEventListener("click", ()=>{
   try{
     await enterApp();
   }catch(err){
-    session = null;
-    clearSession();
+    // Si algo falla al dibujar, la sesión se conserva (no se deja la app
+    // visible con session=null, que era lo que rompía la primera solicitud).
+    if (!session || !session.email) backToLogin();
   }
 })();
 
@@ -778,13 +779,30 @@ function showLoadingPlaceholders(){
   $("#history-list").appendChild(el("div","empty-state","Cargando…"));
 }
 
+/**
+ * Si la sesión se perdió (Salir en otra pestaña, localStorage limpiado, o
+ * Salir apretado mientras todavía estaba cargando algo), volvemos al login
+ * en vez de dejar que cualquier pedido en vuelo falle con un error técnico
+ * ("Cannot read properties of null").
+ */
+function backToLogin(){
+  session = null;
+  clearSession();
+  $("#app-screen").classList.remove("active");
+  $("#login-screen").classList.add("active");
+}
+
 async function refreshDashboard(){
+  if (!session || !session.email){ backToLogin(); return; }
+  const emailAtRequest = session.email;
   try{
-    const { balances, history } = await apiCall("getDashboard", { email: session.email });
+    const { balances, history } = await apiCall("getDashboard", { email: emailAtRequest });
+    if (!session || session.email !== emailAtRequest) return; // se cerró la sesión mientras cargaba: no pintar nada
     renderBalances(balances);
     renderHistory(history);
     updateRequestTypesAvailability(balances);
   }catch(err){
+    if (!session) return;
     const cardsWrap = $("#balance-cards");
     cardsWrap.innerHTML = "";
     showRetryState(cardsWrap, "No pudimos cargar tu balance.", refreshDashboard);
@@ -961,6 +979,11 @@ $("#modal-overlay").addEventListener("click", (e)=>{ if(e.target.id==="modal-ove
 
 $("#request-form").addEventListener("submit", async (e)=>{
   e.preventDefault();
+  if (!session || !session.email){
+    closeModal();
+    backToLogin();
+    return;
+  }
   const typeId = e.target.dataset.typeId;
   const type = LEAVE_BY_ID[typeId];
   const fd = new FormData(e.target);
@@ -1062,8 +1085,9 @@ async function renderMonthView(){
   }
   if (refreshBtn){ refreshBtn.disabled = false; refreshBtn.classList.remove("spinning"); }
 
+  try{
   const items = [];
-  employees.forEach(emp=>{
+  (employees || []).forEach(emp=>{
     if (emp.fechaNacimiento){
       const [mm,dd] = emp.fechaNacimiento.split("-").map(Number);
       if (mm-1 === viewMonth) items.push({ nombre:emp.nombre, foto:emp.fotoPerfil, day:dd, kind:"birthday", tag:"Cumpleaños", sub:"Cumpleaños" });
@@ -1102,6 +1126,9 @@ async function renderMonthView(){
     `);
     wrap.appendChild(card);
   });
+  }catch(renderErr){
+    showRetryState(wrap, "No pudimos armar el calendario.", renderMonthView);
+  }
 }
 </script>
 </body>
