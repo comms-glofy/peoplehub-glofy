@@ -892,7 +892,7 @@ function renderHistory(history){
     const row = el("div","history-row",`
       <div class="h-main">
         <span class="h-type">${leaveTypeName(r.tipo)}</span>
-        <span class="h-dates">${fmtDate(r.fecha_inicio)}${r.fecha_fin && r.fecha_fin!==r.fecha_inicio ? " → "+fmtDate(r.fecha_fin) : ""} · ${r.dias} día(s)</span>
+        <span class="h-dates">${fmtDate(r.fecha_inicio)}${r.fecha_fin && r.fecha_fin!==r.fecha_inicio ? " → "+fmtDate(r.fecha_fin) : ""} · ${r.dias} día(s)${r.horario ? " · " + r.horario + " hs" : ""}</span>
       </div>
       <div class="h-right">
         ${gcalBtns}
@@ -952,7 +952,7 @@ function fieldTemplate(type, id){
   const map = {
     fecha_inicio: `<div class="field"><label>Fecha de inicio</label><input type="date" name="fecha_inicio" required></div>`,
     fecha_fin: `<div class="field"><label>Fecha de fin</label><input type="date" name="fecha_fin" required></div>`,
-    hora: `<div class="field"><label>Horario</label><input type="time" name="hora"></div>`,
+    hora: `<div class="field"><label>Horario</label><input type="time" name="hora"${type.id === "permiso_especial" ? " required" : ""}></div>`,
     motivo: `<div class="field"><label>Motivo</label><textarea name="motivo" required placeholder="Contanos brevemente el motivo"></textarea></div>`,
     motivo_opcional: `<div class="field"><label>Comentario (opcional)</label><textarea name="motivo" placeholder="Opcional"></textarea></div>`,
   };
