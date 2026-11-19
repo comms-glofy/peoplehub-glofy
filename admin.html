@@ -668,11 +668,26 @@ function renderEmployees(){
       </div>
       <div class="emp-actions">
         <button class="btn btn-outline btn-sm">Editar</button>
+        <button class="btn btn-danger btn-sm" data-action="delete-employee">Eliminar</button>
       </div>
     `);
     card.querySelector("button").addEventListener("click", ()=>openEmployeeModal(emp));
+    card.querySelector('[data-action="delete-employee"]').addEventListener("click", (ev)=>deleteEmployee(emp, ev.currentTarget));
     wrap.appendChild(card);
   });
+}
+
+async function deleteEmployee(emp, btn){
+  if (!confirm(`¿Eliminar a ${emp.nombre} (${emp.email}) del People Hub?\n\nYa no va a poder ingresar y desaparece de la lista y del calendario de cumpleaños. Su historial de solicitudes se conserva en el Sheet.`)) return;
+  btn.disabled = true;
+  try{
+    await apiCall("adminDeleteEmployee", { rowNum: emp.rowNum, email: emp.email });
+    showToast(`${emp.nombre} fue eliminado/a.`);
+    await loadEmployees();
+  }catch(err){
+    showToast(err.message || "No pudimos eliminar al colaborador.");
+    btn.disabled = false;
+  }
 }
 
 $("#add-employee-btn").addEventListener("click", ()=>openEmployeeModal(null));
